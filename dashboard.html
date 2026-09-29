@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Dashboard | Wellbeing AI</title>
+
+<link rel="stylesheet"
+href="css/style.css">
+
+</head>
+
+<body>
+
+<nav class="navbar">
+
+<div class="nav-container">
+
+<a href="index.html" class="logo">
+✦ Wellbeing <b>AI</b>
+</a>
+
+<div class="nav-links">
+
+<a href="index.html">Home</a>
+
+<a href="assessment.html">
+Assessment
+</a>
+
+<a href="dashboard.html"
+class="active">
+Dashboard
+</a>
+
+<a href="about.html">
+About
+</a>
+
+</div>
+
+<div class="nav-buttons">
+
+<button id="themeToggle"
+class="icon-button">
+🌙
+</button>
+
+</div>
+
+</div>
+
+</nav>
+
+
+<main class="page">
+
+<div class="container">
+
+
+<div class="dashboard-header">
+
+<div>
+
+<span class="badge">
+ANALYTICS
+</span>
+
+<h1>
+Well-being Analytics
+</h1>
+
+<p>
+Monitor patterns and explore project data.
+</p>
+
+</div>
+
+
+<div class="filters">
+
+<select>
+
+<option>
+All Periods
+</option>
+
+<option>
+Last 30 Days
+</option>
+
+<option>
+Last 90 Days
+</option>
+
+</select>
+
+
+<select>
+
+<option>
+All Risk Levels
+</option>
+
+<option>
+Low
+</option>
+
+<option>
+Moderate
+</option>
+
+<option>
+High
+</option>
+
+</select>
+
+</div>
+
+</div>
+
+
+<!-- STATS -->
+
+<div class="dashboard-stats">
+
+
+<div class="stat-card">
+
+<div class="stat-icon">
+◉
+</div>
+
+<p>Total Assessments</p>
+
+<h2>
+250
+</h2>
+
+<small class="positive">
+↑ 12.5% this month
+</small>
+
+</div>
+
+
+<div class="stat-card">
+
+<div class="stat-icon">
+✓
+</div>
+
+<p>Low Risk</p>
+
+<h2>
+105
+</h2>
+
+<small>
+42% of assessments
+</small>
+
+</div>
+
+
+<div class="stat-card">
+
+<div class="stat-icon">
+◌
+</div>
+
+<p>Moderate Risk</p>
+
+<h2>
+90
+</h2>
+
+<small>
+36% of assessments
+</small>
+
+</div>
+
+
+<div class="stat-card">
+
+<div class="stat-icon">
+!
+</div>
+
+<p>High Risk</p>
+
+<h2>
+55
+</h2>
+
+<small>
+22% of assessments
+</small>
+
+</div>
+
+</div>
+
+
+<!-- CHARTS -->
+
+<div class="chart-grid">
+
+
+<div class="chart-card">
+
+<div class="chart-header">
+
+<div>
+
+<h3>
+Stress Risk Trend
+</h3>
+
+<p>
+Monthly risk index
+</p>
+
+</div>
+
+<span class="chart-badge">
+Live Data
+</span>
+
+</div>
+
+<div class="chart-container">
+
+<canvas id="trendChart"></canvas>
+
+</div>
+
+</div>
+
+
+<div class="chart-card">
+
+<div class="chart-header">
+
+<div>
+
+<h3>
+Risk Distribution
+</h3>
+
+<p>
+Current overview
+</p>
+
+</div>
+
+</div>
+
+<div class="chart-container">
+
+<canvas id="riskChart"></canvas>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="chart-card full-chart">
+
+<div class="chart-header">
+
+<div>
+
+<h3>
+Well-being & Sleep Analysis
+</h3>
+
+<p>
+Comparison of sample well-being scores
+</p>
+
+</div>
+
+</div>
+
+<div class="chart-container">
+
+<canvas id="sleepChart"></canvas>
+
+</div>
+
+</div>
+
+
+<!-- AI INSIGHT -->
+
+<div class="dashboard-insight">
+
+<div class="big-ai-icon">
+✦
+</div>
+
+<div>
+
+<h3>
+AI Insight
+</h3>
+
+<p>
+The dashboard can help identify patterns between
+workload, sleep, work-life balance and other factors.
+Use aggregated insights to support constructive
+well-being discussions.
+</p>
+
+</div>
+
+</div>
+
+
+</div>
+
+</main>
+
+
+<footer>
+
+<div class="container footer-content">
+
+<strong>
+✦ Wellbeing AI
+</strong>
+
+<p>
+Data Science Project Dashboard
+</p>
+
+</div>
+
+</footer>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="js/script.js"></script>
+
+</body>
+
+</html>
