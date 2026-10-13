@@ -3,9 +3,12 @@
 <body data-page="admin-jobs">
 <div class="app"><aside class="side" id="side"></aside>
 <div class="main"><header class="top" id="top"></header>
-<main class="content"><div class="row" style="justify-content:space-between"><div><h1 style="margin:0">Source checking ≡</h1><p class="muted">Scheduler audit (<code>scrape_jobs</code>). Failure never erases trusted data.</p></div><button class="btn sm dark" onclick="toast('Check-now queued (POST /api/admin/check-now)')")>▶ Run check now</button></div>
+<main class="content"><div class="row" style="justify-content:space-between"><div><h1 style="margin:0">Source checking ≡</h1><p class="muted">Scheduler audit (<code>scrape_jobs</code>). Failure never erases trusted data.</p></div><button class="btn sm dark" onclick="runCheck()">▶ Run check now</button></div>
 <div class="tblwrap"><table class="tbl"><thead><tr><th>Started</th><th>Source</th><th>Result</th><th>Found</th><th>Ins</th><th>Upd</th><th>Review</th></tr></thead><tbody id="tb"></tbody></table></div>
 </main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
-<script>tb.innerHTML=JOBS.map(j=>`<tr><td data-l="Started">${j.at}</td><td data-l="Source">${j.src}</td><td data-l="Result"><span class="dot ${j.res==="success"?"d-ok":j.res==="source_unavailable"?"d-bad":"d-warn"}"></span>${j.res.replace("_"," ")}</td><td data-l="Found">${j.f}</td><td data-l="Inserted">${j.i}</td><td data-l="Updated">${j.u}</td><td data-l="Review">${j.r}</td></tr>`).join("");</script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>function render(){tb.innerHTML=JOBS.map(j=>`<tr><td data-l="Started">${j.at}</td><td data-l="Source">${j.src}</td><td data-l="Result"><span class="dot ${j.res==="success"?"d-ok":j.res==="source_unavailable"?"d-bad":"d-warn"}"></span>${j.res.replace("_"," ")}</td><td data-l="Found">${j.f}</td><td data-l="Inserted">${j.i}</td><td data-l="Updated">${j.u}</td><td data-l="Review">${j.r}</td></tr>`).join("");}
+document.addEventListener("data-changed",render);render();
+function runCheck(){fetch('/api/admin/refresh',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('st_token')||'')}}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(()=>toast('Live check started — jobs refresh in ~1 min')).catch(()=>toast('Needs backend + admin login'));}
+</script>
 </body></html>

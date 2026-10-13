@@ -5,6 +5,7 @@
 <div class="main"><header class="top" id="top"></header>
 <main class="content"><div class="row" style="justify-content:space-between"><div><h1 style="margin:0">Change detection ✦</h1><p class="muted">Current vs previous record diff → New / Updated event → <code>exam_updates</code>.</p></div><button class="btn sm" onclick="simulateUpdate();location.reload()">⚡ Simulate update</button></div>
 <div class="panel" id="l"></div></main></div></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
-<script>l.innerHTML=EXAMS.flatMap(e=>e.history.map(h=>({e,h}))).sort((a,b)=>b.h.at.localeCompare(a.h.at)).map(r=>`<div class="notif"><div class="nicon" style="background:#e0e7ff">✦</div><div><b>${r.e.title}</b> ${statusBadge(r.e.status)}<br><span class="muted">${r.h.at} — ${r.h.msg}</span></div></div>`).join("");</script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>function render(){l.innerHTML=EXAMS.flatMap(e=>e.history.map(h=>({e,h}))).sort((a,b)=>b.h.at.localeCompare(a.h.at)).map(r=>`<div class="notif"><div class="nicon" style="background:#e0e7ff">✦</div><div><b>${r.e.title}</b> ${statusBadge(r.e.status)}<br><span class="muted">${r.h.at} — ${r.h.msg}</span></div></div>`).join("");}
+document.addEventListener("data-changed",render);render();</script>
 </body></html>

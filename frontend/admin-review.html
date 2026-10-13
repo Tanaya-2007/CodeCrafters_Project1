@@ -5,11 +5,14 @@
 <div class="main"><header class="top" id="top"></header>
 <main class="content"><h1 style="margin:0">Data review ◎</h1><p class="muted">Ambiguous extractions land here — never auto-published. Rules: required fields, end ≥ start, dedup, official URL + retrieval time required.</p>
 <div class="grid" id="g"></div></main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
+function render(){
 const q=EXAMS.filter(e=>e.status==="Needs Review");
 g.innerHTML=q.map(e=>`<div class="card"><div class="org">${e.organization}</div><h3>${e.title}</h3><div style="align-self:flex-start;margin-top:8px">${statusBadge(e.status)}</div>
 <div class="meta">❌ Missing: <b>${[!e.application_end&&"application_end",!e.exam_date&&"exam_date"].filter(Boolean).join(", ")}</b><br>🔗 <a href="${e.official_url}" target="_blank">Official ↗</a><br><span class="muted">Retrieved ${new Date(e.last_checked).toLocaleString()}</span></div>
 <div class="row" style="margin-top:14px"><button class="btn sm" onclick="toast('Approved in backend → status Verified')">✓ Approve</button><button class="btn sm ghost" onclick="toast('Sent back to parser queue')">↺ Re-parse</button><button class="btn sm ghost" onclick="toast('Rejected: duplicate/invalid')">Reject</button></div></div>`).join("")||"<p>Queue empty. 🎉</p>";
+}
+document.addEventListener("data-changed",render);render();
 </script>
 </body></html>

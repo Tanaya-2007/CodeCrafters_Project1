@@ -9,12 +9,14 @@
 <div class="chiprow" id="opts"></div>
 <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost sm" onclick="m.classList.remove('open')">Cancel</button><button class="btn sm" onclick="saveSt()">Save</button></div>
 </div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
-const id=new URLSearchParams(location.search).get("id")||EXAMS[0].id;
-const e=EXAMS.find(x=>x.id===id)||EXAMS[0];let sel=getTracker()[e.id]||"Interested";
 const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
-const t=getTracker();const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
+let eid=null,edata=null,esel="Interested";
+function renderDetails(){
+eid=new URLSearchParams(location.search).get("id")||EXAMS[0].id;
+edata=EXAMS.find(x=>x.id===eid)||EXAMS[0];esel=getTracker()[edata.id]||"Interested";
+const e=edata,t=getTracker();const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
 d.innerHTML=`<div class="row" style="justify-content:space-between"><span class="org">${e.organization}</span>${e.updated?'<span class="badge b-updated">✦ Official update — field changed</span>':statusBadge(e.status)}</div>
 <h1 style="margin:8px 0;letter-spacing:-.6px;font-size:clamp(22px,3vw,30px)">${e.title}</h1>
 <div class="muted">${e.advt_no} · ${e.vacancies??"?"} posts · <a href="${e.official_url}" target="_blank">Official notice ↗</a> (truth) · Last checked ${new Date(e.last_checked).toLocaleString()}</div>
@@ -24,8 +26,10 @@ d.innerHTML=`<div class="row" style="justify-content:space-between"><span class=
 <div class="kpi"><small>🔔 My alerts</small><b>7d + 1d</b><span class="muted"><a href="profile.html">Preferences →</a></span></div></div>
 <div class="row"><button class="btn" onclick="openM()">${t[e.id]?"Update status ("+t[e.id]+")":"+ Track this exam"}</button><a class="btn ghost" href="${e.official_url}" target="_blank">Open official ↗</a><button class="btn ghost" onclick="simulateUpdate();location.reload()">⚡ Simulate update</button></div>
 <div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${e.history.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div><b>${h.at}</b><br><span class="muted">${h.msg}</span></div></div>`).join("")}</div>`;
-function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===sel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
-opts.onclick=ev=>{const b=ev.target.closest(".chip");if(!b)return;sel=b.dataset.s;[...opts.children].forEach(c=>c.classList.toggle("on",c===b));};
-function saveSt(){const tr=getTracker();tr[e.id]=sel;setTracker(tr);m.classList.remove("open");toast("Status → "+sel);location.reload();}
+}
+function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
+opts.onclick=ev=>{const b=ev.target.closest(".chip");if(!b)return;esel=b.dataset.s;[...opts.children].forEach(c=>c.classList.toggle("on",c===b));};
+function saveSt(){const tr=getTracker();tr[edata.id]=esel;setTracker(tr);m.classList.remove("open");toast("Status → "+esel);renderDetails();}
+document.addEventListener("data-changed",renderDetails);renderDetails();
 </script>
 </body></html>

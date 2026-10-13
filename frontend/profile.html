@@ -13,7 +13,7 @@
 <div class="toggle"><span>✦ Official updates to tracked exams</span><div class="switch" id="su" onclick="flip('upd')"></div></div>
 <div class="toggle" style="border:0"><span>✉️ Email channel (MVP: in-app only)</span><div class="switch" id="se" onclick="flip('email')"></div></div>
 </div></div></main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 n.value=localStorage.getItem("st_name")||"";e.value=currentUser()||"";
 function paint(){const p=prefs();s7.classList.toggle("on",p.d7);s1.classList.toggle("on",p.d1);su.classList.toggle("on",p.upd);se.classList.toggle("on",p.email);}

@@ -6,6 +6,7 @@
 <main class="content"><div class="row" style="justify-content:space-between"><div><h1 style="margin:0">Official sources ◈</h1><p class="muted">MVP: 3–5 sources. Each has its own parser. Table: <code>official_sources</code>.</p></div><button class="btn sm" onclick="toast('Add-source is backend-only (POST /api/sources)')")+ Source</button></div>
 <div class="tblwrap"><table class="tbl"><thead><tr><th>Source</th><th>Parser / interval</th><th>Status</th><th>Last checked</th><th>Items</th></tr></thead><tbody id="tb"></tbody></table></div>
 </main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
-<script>tb.innerHTML=SOURCES.map(s=>`<tr><td data-l="Source"><b>${s.name}</b><br><a class="muted" href="${s.url}" target="_blank">${s.url} ↗</a></td><td data-l="Parser"><code>${s.parser}</code><br><span class="muted">every ${s.interval/60}h</span></td><td data-l="Status">${statusBadge(s.status)}</td><td data-l="Checked">${s.last}</td><td data-l="Items">${s.items}</td></tr>`).join("");</script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>function render(){tb.innerHTML=SOURCES.map(s=>`<tr><td data-l="Source"><b>${s.name}</b><br><a class="muted" href="${s.url}" target="_blank">${s.url} ↗</a></td><td data-l="Parser"><code>${s.parser}</code><br><span class="muted">every ${s.interval?s.interval/60:6}h</span></td><td data-l="Status">${statusBadge(s.status)}</td><td data-l="Checked">${s.last}</td><td data-l="Items">${s.items}</td></tr>`).join("");}
+document.addEventListener("data-changed",render);render();</script>
 </body></html>

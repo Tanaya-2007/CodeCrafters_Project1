@@ -9,7 +9,7 @@
 <div class="kpi"><small>Closing ≤ 7d</small><b id="a3">–</b></div><div class="kpi"><small>Admit stage+</small><b id="a4">–</b></div></div>
 <div class="tblwrap"><table class="tbl"><thead><tr><th>Exam</th><th>Deadline</th><th>Status</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
 </main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
 function render(){const t=getTracker(),ids=Object.keys(t);
@@ -24,6 +24,6 @@ return `<tr><td data-l="Exam"><b>${e.title}</b><br><span class="muted">${e.organ
 <td data-l="Open"><a class="btn sm ghost" href="exam-details.html?id=${k}">Open</a></td></tr>`;}).join("")||`<tr><td colspan="4" style="text-align:center;padding:30px">Nothing tracked yet. <a href="explore.html">Explore exams →</a></td></tr>`;}
 function adv(k){const t=getTracker();t[k]=order[(order.indexOf(t[k])+1)%order.length];setTracker(t);toast("Status → "+t[k]);render();}
 function rm(k){const t=getTracker();delete t[k];setTracker(t);render();}
-document.addEventListener("tracker-changed",render);render();
+document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>
 </body></html>

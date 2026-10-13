@@ -11,8 +11,14 @@
 </div></div>
 <script src="js/data.js"></script>
 <script>
-function doAdmin(){
+async function doAdmin(){
   const e=document.getElementById('e').value.trim(), p=document.getElementById('p').value;
+  try{
+    const r=await fetch('/api/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
+    if(!r.ok)throw 0;const j=await r.json();
+    localStorage.setItem('st_token',j.token);localStorage.setItem('st_admin',j.admin.email);localStorage.setItem('st_role','admin');
+    location.href='admin.html';return;
+  }catch(_){/* backend offline → local demo check */}
   if(e==="admin@sarkari.track" && p==="admin123"){
     localStorage.setItem('st_admin',e); localStorage.setItem('st_role','admin');
     location.href='admin.html';

@@ -11,5 +11,9 @@
 <p class="muted">Demo: any email works. Admins must use the separate admin login.</p>
 </div></div>
 <script src="js/data.js"></script>
-<script>function doLogin(){const e=document.getElementById('e').value.trim();if(!e)return alert('Enter email');localStorage.setItem('st_user',e);localStorage.setItem('st_role','user');localStorage.removeItem('st_admin');location.href='dashboard.html';}</script>
+<script>async function doLogin(){const e=document.getElementById('e').value.trim(),p=document.getElementById('p').value;if(!e)return alert('Enter email');
+try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
+if(!r.ok)throw 0;const j=await r.json();localStorage.setItem('st_token',j.token);localStorage.setItem('st_user',j.user.email);localStorage.setItem('st_name',j.user.name);}
+catch(_){localStorage.setItem('st_user',e);}
+localStorage.setItem('st_role','user');localStorage.removeItem('st_admin');location.href='dashboard.html';}</script>
 </body></html>

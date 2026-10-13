@@ -69,8 +69,8 @@ function pendingAlerts(){
   return [...new Set(out)];
 }
 function toast(msg){ let w=document.getElementById("toasts"); if(!w){w=document.createElement("div");w.id="toasts";document.body.appendChild(w);} const d=document.createElement("div"); d.className="toast"; d.textContent=msg; w.appendChild(d); setTimeout(()=>d.remove(),2800); }
-function logout(){ localStorage.removeItem("st_user"); localStorage.removeItem("st_role"); location.href="login.html"; }
-function adminLogout(){ localStorage.removeItem("st_admin"); localStorage.removeItem("st_role"); location.href="admin-login.html"; }
+function logout(){ ["st_user","st_role","st_token","st_admin"].forEach(k=>localStorage.removeItem(k)); location.href="login.html"; }
+function adminLogout(){ ["st_admin","st_role","st_token"].forEach(k=>localStorage.removeItem(k)); location.href="admin-login.html"; }
 function toggleTrack(id){
   const t=getTracker();
   if(t[id]) delete t[id]; else t[id]="Interested";

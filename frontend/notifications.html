@@ -9,7 +9,7 @@
 <button class="btn ghost sm" onclick="simulateUpdate();render()">⚡ Simulate update → new alert</button></div>
 <div class="panel" id="list"></div>
 </main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 function render(){const t=getTracker(),p=prefs(),items=[];
 Object.entries(t).forEach(([id,s])=>{const e=EXAMS.find(x=>x.id===id);if(!e)return;const n=daysLeft(e.application_end);
