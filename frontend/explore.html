@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explore — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="explore">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content">
+<div class="sec-head"><div><h2>Explore exams 🔍</h2><p>All official notices · filter by urgency, status, organisation</p></div><span class="muted" id="count"></span></div>
+<div class="toolbar"><input id="q" placeholder="Search title, org, advt no…" style="flex:2;min-width:200px">
+<select id="fOrg"><option value="">All organisations</option></select>
+<select id="fStatus"><option value="">All statuses</option><option>Verified</option><option>Updated</option><option>Needs Review</option></select>
+<select id="fSort"><option value="deadline">Sort: deadline ↓</option><option value="exam">Sort: exam date</option></select></div>
+<div class="chiprow" id="chips"><button class="chip on" data-f="">All</button><button class="chip" data-f="week">🔥 Closing ≤ 7d</button><button class="chip" data-f="upd">✦ Updated</button><button class="chip" data-f="tracked">📌 Tracked</button></div>
+<div class="grid" id="grid" style="margin-top:14px"></div>
+</main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+const orgs=[...new Set(EXAMS.map(e=>e.organization))];orgs.forEach(o=>{const op=document.createElement("option");op.textContent=o;fOrg.appendChild(op);});
+q.value=new URLSearchParams(location.search).get("q")||"";let chip="";
+chips.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;chip=b.dataset.f;[...chips.children].forEach(c=>c.classList.toggle("on",c===b));render();};
+[q,fOrg,fStatus,fSort].forEach(el=>el.oninput=render);
+function initials(s){return s.split(" ").map(w=>w[0]).slice(0,2).join("");}
+function render(){let l=[...EXAMS];const s=q.value.toLowerCase();
+if(s)l=l.filter(e=>(e.title+e.organization+(e.advt_no||"")).toLowerCase().includes(s));
+if(fOrg.value)l=l.filter(e=>e.organization===fOrg.value);
+if(fStatus.value)l=l.filter(e=>e.status===fStatus.value);
+const t=getTracker();
+if(chip==="week")l=l.filter(e=>{const n=daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;});
+if(chip==="upd")l=l.filter(e=>e.updated);
+if(chip==="tracked")l=l.filter(e=>t[e.id]);
+l.sort((a,b)=>fSort.value==="exam"?(a.exam_date||"9999").localeCompare(b.exam_date||"9999"):(a.application_end||"9999").localeCompare(b.application_end||"9999"));
+count.textContent=`${l.length} notice${l.length!==1?"s":""}`;
+grid.innerHTML=l.map(e=>{const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
+return `<article class="card"><div class="card-top"><div class="avatar" style="background:${avatarColor(e.organization)}">${initials(e.organization)}</div>
+<div style="flex:1"><div class="org">${e.organization}</div><div class="row" style="gap:6px;margin-top:4px">${statusBadge(e.status)}</div></div>
+<div style="font-weight:900;font-size:20px;color:${urg?"var(--bad)":"var(--brand)"}">${!e.application_end?'<span class="muted" style="font-size:14px">—</span>':(n<0?'<span class="badge b-review">Closed</span>':n+"d")}</div></div>
+<h3>${e.title}</h3><div class="muted">${e.advt_no} · ${e.vacancies??"?"} posts · Exam ${e.exam_date||"TBD"}</div>
+<div class="countline ${urg?"urgent":""}" style="margin-top:8px"><span>${fullCountdown(e)}</span></div><div class="bar"><i style="width:${urgency(e)}%"></i></div>
+<div class="row"><a class="btn sm" href="exam-details.html?id=${e.id}">Details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}');render()">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div></article>`;}).join("")||`<div class="panel">No matches. Try clearing filters.</div>`;}
+document.addEventListener("tracker-changed",render);render();
+</script>
+</body></html>

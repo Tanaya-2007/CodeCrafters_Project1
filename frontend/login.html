@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="login">
+<div class="center"><div class="authcard">
+<div class="brand"><span class="mark">S</span><div>SarkariTrack<small>CANDIDATE LOGIN</small></div></div>
+<h1>Welcome back</h1><p class="muted">Login to your personalized exam dashboard.</p>
+<div class="field"><label>Email</label><input id="e" placeholder="you@example.com" autocomplete="email"></div>
+<div class="field"><label>Password</label><input id="p" type="password" placeholder="••••••••"></div>
+<button class="btn" style="width:100%;margin-top:8px" onclick="doLogin()">Login as Candidate →</button>
+<div class="row" style="justify-content:space-between;margin-top:12px"><span class="muted">New here? <a href="register.html">Register</a></span><a class="muted" href="admin-login.html">Admin login →</a></div>
+<p class="muted">Demo: any email works. Admins must use the separate admin login.</p>
+</div></div>
+<script src="js/data.js"></script>
+<script>function doLogin(){const e=document.getElementById('e').value.trim();if(!e)return alert('Enter email');localStorage.setItem('st_user',e);localStorage.setItem('st_role','user');localStorage.removeItem('st_admin');location.href='dashboard.html';}</script>
+</body></html>

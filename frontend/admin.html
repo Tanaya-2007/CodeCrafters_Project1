@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Dashboard — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="admin">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content"><h1 style="margin:0">Admin dashboard 🛡</h1><p class="muted">Ingestion → validation → storage → dashboard → alert health.</p>
+<div class="kpis"><div class="kpi"><small>Verified records</small><b id="a1">–</b></div><div class="kpi"><small>Needs review</small><b id="a2">–</b></div>
+<div class="kpi"><small>Sources unavailable</small><b id="a3">–</b></div><div class="kpi"><small>Updates detected</small><b id="a4">–</b></div></div>
+<div class="two"><div class="panel"><div class="row" style="justify-content:space-between"><b>Latest scrape jobs</b><a href="admin-jobs.html">All logs →</a></div>
+<div class="tblwrap" style="margin-top:10px"><table class="tbl"><thead><tr><th>Time</th><th>Source</th><th>Result</th></tr></thead><tbody id="tj"></tbody></table></div></div>
+<div class="panel"><b>Needs attention</b><div id="att" style="margin-top:8px"></div>
+<div class="row" style="margin-top:10px"><a class="btn sm" href="admin-review.html">Review queue</a><button class="btn sm ghost" onclick="simulateUpdate();location.reload()">⚡ Simulate update</button></div></div></div>
+</main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+a1.textContent=EXAMS.filter(e=>["Verified","Updated"].includes(e.status)).length;
+a2.textContent=EXAMS.filter(e=>e.status==="Needs Review").length;
+a3.textContent=SOURCES.filter(s=>s.status==="Source Unavailable").length;
+a4.textContent=EXAMS.filter(e=>e.updated).length;
+tj.innerHTML=JOBS.slice(0,3).map(j=>`<tr><td>${j.at}</td><td>${j.src}</td><td><span class="dot ${j.res==="success"?"d-ok":j.res==="source_unavailable"?"d-bad":"d-warn"}"></span>${j.res}</td></tr>`).join("");
+att.innerHTML=SOURCES.filter(s=>s.status!=="Verified").map(s=>`<div class="notif"><div class="nicon" style="background:#fee2e2">⚠</div><div><b>${s.name}</b><br><span class="muted">${s.status} · last ${s.last}</span></div></div>`).join("")+EXAMS.filter(e=>e.status==="Needs Review").map(e=>`<div class="notif"><div class="nicon" style="background:#fef3c7">◎</div><div><b>${e.title}</b><br><span class="muted">Ambiguous extraction — needs review</span></div></div>`).join("");
+</script>
+</body></html>

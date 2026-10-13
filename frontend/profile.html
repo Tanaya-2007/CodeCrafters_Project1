@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile & Settings — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="profile">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content"><h1 style="margin:0">Profile & settings ⚙</h1><p class="muted">Stored in <code>users</code> + <code>alert_pref_days</code>. Local demo uses localStorage.</p>
+<div class="two"><div class="panel"><b>👤 Profile</b>
+<div class="field"><label>Name</label><input id="n"></div><div class="field"><label>Email</label><input id="e"></div>
+<button class="btn sm" onclick="save()">Save profile</button> <button class="btn sm ghost" onclick="logout()">Logout</button></div>
+<div class="panel"><b>🔔 Notification preferences</b><p class="muted">Backend cron reads these before sending idempotent alerts.</p>
+<div class="toggle"><span>⏰ 7 days before deadline</span><div class="switch" id="s7" onclick="flip('d7')"></div></div>
+<div class="toggle"><span>⏰ 1 day before deadline</span><div class="switch" id="s1" onclick="flip('d1')"></div></div>
+<div class="toggle"><span>✦ Official updates to tracked exams</span><div class="switch" id="su" onclick="flip('upd')"></div></div>
+<div class="toggle" style="border:0"><span>✉️ Email channel (MVP: in-app only)</span><div class="switch" id="se" onclick="flip('email')"></div></div>
+</div></div></main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+n.value=localStorage.getItem("st_name")||"";e.value=currentUser()||"";
+function paint(){const p=prefs();s7.classList.toggle("on",p.d7);s1.classList.toggle("on",p.d1);su.classList.toggle("on",p.upd);se.classList.toggle("on",p.email);}
+function flip(k){const p=prefs();p[k]=!p[k];savePrefs(p);paint();toast("Preference saved");}
+function save(){localStorage.setItem("st_name",n.value);localStorage.setItem("st_user",e.value);toast("Profile saved");}
+paint();
+</script>
+</body></html>

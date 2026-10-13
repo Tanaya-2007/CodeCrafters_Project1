@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Tracker — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="tracker">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content">
+<div class="sec-head"><div><h2>My applications 📌</h2><p>Your pipeline · tap status to advance · countdown per exam</p></div><a class="btn sm" href="explore.html">+ Track more</a></div>
+<div class="kpis"><div class="kpi"><small>Tracked</small><b id="a1">–</b></div><div class="kpi"><small>Applied+</small><b id="a2">–</b></div>
+<div class="kpi"><small>Closing ≤ 7d</small><b id="a3">–</b></div><div class="kpi"><small>Admit stage+</small><b id="a4">–</b></div></div>
+<div class="tblwrap"><table class="tbl"><thead><tr><th>Exam</th><th>Deadline</th><th>Status</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+</main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
+function render(){const t=getTracker(),ids=Object.keys(t);
+a1.textContent=ids.length;a2.textContent=ids.filter(k=>t[k]!=="Interested").length;
+a3.textContent=ids.filter(k=>{const e=EXAMS.find(x=>x.id===k);const n=e&&daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;}).length;
+a4.textContent=ids.filter(k=>["Admit Card","Exam Done","Completed"].includes(t[k])).length;
+tb.innerHTML=ids.map(k=>{const e=EXAMS.find(x=>x.id===k);if(!e)return"";
+const idx=order.indexOf(t[k]);
+return `<tr><td data-l="Exam"><b>${e.title}</b><br><span class="muted">${e.organization}</span></td>
+<td data-l="Deadline">${e.application_end||"—"}<br><b>${countdownText(e)}</b><div class="bar" style="max-width:150px"><i style="width:${urgency(e)}%"></i></div></td>
+<td data-l="Status"><div class="progress-steps">${order.map((_,i)=>`<i class="${i<=idx?"done":""}"></i>`).join("")}</div><button class="chip on" onclick="adv('${k}')">${t[k]} →</button></td>
+<td data-l="Open"><a class="btn sm ghost" href="exam-details.html?id=${k}">Open</a></td></tr>`;}).join("")||`<tr><td colspan="4" style="text-align:center;padding:30px">Nothing tracked yet. <a href="explore.html">Explore exams →</a></td></tr>`;}
+function adv(k){const t=getTracker();t[k]=order[(order.indexOf(t[k])+1)%order.length];setTracker(t);toast("Status → "+t[k]);render();}
+function rm(k){const t=getTracker();delete t[k];setTracker(t);render();}
+document.addEventListener("tracker-changed",render);render();
+</script>
+</body></html>

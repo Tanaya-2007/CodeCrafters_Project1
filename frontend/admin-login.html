@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Login — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="admin-login">
+<div class="center"><div class="authcard">
+<div class="brand"><span class="mark">S</span><div>SarkariTrack<small>ADMIN CONSOLE</small></div></div>
+<h1>Admin login</h1><p class="muted">Restricted: sources, review queue, changes & job logs.</p>
+<div class="field"><label>Admin email</label><input id="e" placeholder="admin@sarkari.track" autocomplete="username"></div>
+<div class="field"><label>Password</label><input id="p" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+<button class="btn" style="width:100%;margin-top:8px" onclick="doAdmin()">Login as Admin →</button>
+<div class="row" style="justify-content:space-between;margin-top:12px"><a class="muted" href="login.html">← Candidate login</a><span class="muted">Demo: admin / admin123</span></div>
+</div></div>
+<script src="js/data.js"></script>
+<script>
+function doAdmin(){
+  const e=document.getElementById('e').value.trim(), p=document.getElementById('p').value;
+  if(e==="admin@sarkari.track" && p==="admin123"){
+    localStorage.setItem('st_admin',e); localStorage.setItem('st_role','admin');
+    location.href='admin.html';
+  } else alert('Invalid admin credentials. Hint: admin@sarkari.track / admin123');
+}
+</script>
+</body></html>
