@@ -1,7 +1,6 @@
-================================================================
+
 SarkariTrack — Competitive Exam & Recruitment Dashboard (PS-1)
 Team project overview — plain-English guide for all members
-================================================================
 
 1. WHAT IS THIS PROJECT?
 ------------------------
@@ -56,6 +55,11 @@ Problem Statement: PS-1, Competitive Exam & Recruitment.
      backward/jump attempts rejected, Completed never wraps around).
   8. ALERTS: in-app notifications at 7 days + 1 day before deadlines
      plus official-update alerts, per the user's preferences.
+  9. PERSONALIZATION: profile captures qualification, stream, state,
+     age + interests (frontend/js/recommend.js). Engine verdicts every
+     exam family as Eligible / One-step-away / Later with reasons;
+     For-You page links live notices in; every exam-details page shows
+     the exact books + subjects + official links to clear that exam.
   9. FAILURE RULE: a portal failing only writes a job log
      (Source Unavailable). Trusted stored data is NEVER deleted.
 
@@ -87,6 +91,7 @@ Problem Statement: PS-1, Competitive Exam & Recruitment.
     explore.html ....... search + filters (org, status, urgency, tracked)
     exam-details.html .. dates, official link, tracker status, history
     tracker.html ....... My Applications table, tap status to advance
+    foryou.html ........ Recommended exams for YOU + study material
     notifications.html . deadline + official-update alerts
     history.html ....... every official change, filterable
     profile.html ....... name/email, notification prefs, logout
@@ -145,21 +150,3 @@ Problem Statement: PS-1, Competitive Exam & Recruitment.
   - Tracker transitions are server-validated; Completed is terminal.
 
 
-9. REPO NOTES
--------------
-  Remote: https://github.com/Tanaya-2007/CodeCrafters_Project1
-  The old Assessment/Result files (wrong problem statement) were fully
-  deleted before this work started. backend/node_modules is git-ignored.
-  Main folders: frontend/ backend/ database/ (+ README.md, this file).
-
-
-10. WHO DOES WHAT (suggested split)
------------------------------------
-  - Frontend member(s) ... pages in frontend/ (already built + responsive)
-  - Backend member(s) ... backend/*.js (live, tested: approve/reject,
-                          tracker transitions, scheduler, jobs)
-  - DB member .......... PostgreSQL hosting + run database/schema.sql +
-                         hand over DATABASE_URL (see section 6)
-  - Everyone ........... demo flow: upcoming exams -> open exam + official
-                         link -> track -> countdown -> simulate/update ->
-                         change badge + history -> alert.

@@ -7,18 +7,40 @@
 <div class="two"><div class="panel"><b>👤 Profile</b>
 <div class="field"><label>Name</label><input id="n"></div><div class="field"><label>Email</label><input id="e"></div>
 <button class="btn sm" onclick="save()">Save profile</button> <button class="btn sm ghost" onclick="logout()">Logout</button></div>
+<div class="panel"><b>🎯 My background → recommendations</b><p class="muted">Tell us your education, field & interests. We recommend which exams you should give + show exact study material.</p>
+<div class="field"><label>Highest qualification</label><select id="pQual"><option value="">Select…</option></select></div>
+<div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>Stream / branch</label><select id="pStream"><option value="">Select…</option></select></div>
+<div class="field" style="flex:1;min-width:140px"><label>Status</label><select id="pStatus"><option value="studying">Still studying</option><option value="completed">Completed</option></select></div></div>
+<div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>State</label><select id="pState"><option value="">Select…</option></select></div>
+<div class="field" style="flex:1;min-width:100px"><label>Age (optional)</label><input id="pAge" inputmode="numeric" placeholder="e.g. 21"></div></div>
+<div class="field"><label>Areas of interest (tap all that apply)</label><div class="chiprow" id="pInt"></div></div>
+<button class="btn sm" onclick="saveBg()">Save & see my exams →</button></div>
 <div class="panel"><b>🔔 Notification preferences</b><p class="muted">Backend cron reads these before sending idempotent alerts.</p>
 <div class="toggle"><span>⏰ 7 days before deadline</span><div class="switch" id="s7" onclick="flip('d7')"></div></div>
 <div class="toggle"><span>⏰ 1 day before deadline</span><div class="switch" id="s1" onclick="flip('d1')"></div></div>
 <div class="toggle"><span>✦ Official updates to tracked exams</span><div class="switch" id="su" onclick="flip('upd')"></div></div>
 <div class="toggle" style="border:0"><span>✉️ Email channel (MVP: in-app only)</span><div class="switch" id="se" onclick="flip('email')"></div></div>
 </div></div></main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 n.value=localStorage.getItem("st_name")||"";e.value=currentUser()||"";
 function paint(){const p=prefs();s7.classList.toggle("on",p.d7);s1.classList.toggle("on",p.d1);su.classList.toggle("on",p.upd);se.classList.toggle("on",p.email);}
 function flip(k){const p=prefs();p[k]=!p[k];savePrefs(p);paint();toast("Preference saved");}
 function save(){localStorage.setItem("st_name",n.value);localStorage.setItem("st_user",e.value);toast("Profile saved");}
 paint();
+// ---- background → recommendations ----
+QUALS.forEach(q=>{const o=document.createElement("option");o.value=q.id;o.textContent=q.label;pQual.appendChild(o);});
+STREAMS.forEach(s=>{const o=document.createElement("option");o.textContent=s;pStream.appendChild(o);});
+STATES.forEach(s=>{const o=document.createElement("option");o.textContent=s;pState.appendChild(o);});
+let selInt=new Set();
+pInt.innerHTML=INTERESTS.map(i=>`<button class="chip" data-i="${i.id}">${i.label}</button>`).join("");
+pInt.onclick=ev=>{const b=ev.target.closest(".chip");if(!b)return;const id=b.dataset.i;
+if(selInt.has(id)){selInt.delete(id);b.classList.remove("on");}else{selInt.add(id);b.classList.add("on");}};
+(function(){const p=getProfile();if(!p)return;pQual.value=p.qual||"";pStream.value=p.stream||"";pState.value=p.state||"";
+pStatus.value=p.status||"studying";pAge.value=p.age||"";selInt=new Set(p.interests||[]);
+[...pInt.children].forEach(c=>c.classList.toggle("on",selInt.has(c.dataset.i)));})();
+function saveBg(){if(!pQual.value)return alert("Pick your highest qualification");
+saveProfile({qual:pQual.value,stream:pStream.value,state:pState.value,status:pStatus.value,age:pAge.value.trim(),interests:[...selInt]});
+toast("Background saved ✓");location.href="foryou.html";}
 </script>
 </body></html>

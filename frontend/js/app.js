@@ -17,6 +17,7 @@
   const userLinks = [
     ["dashboard.html","◉","Dashboard","dashboard","Home & deadlines"],
     ["explore.html","⌕","Explore","explore","Search all exams"],
+    ["foryou.html","✦","For You","foryou","Recommended + material"],
     ["tracker.html","✓","Tracker","tracker","My applications"],
     ["notifications.html","🔔","Alerts","notifications","Deadlines & updates"],
     ["history.html","◷","History","history","Official changes"],
