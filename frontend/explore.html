@@ -19,7 +19,7 @@ q.value=new URLSearchParams(location.search).get("q")||"";let chip="";
 chips.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;chip=b.dataset.f;[...chips.children].forEach(c=>c.classList.toggle("on",c===b));render();};
 [q,fOrg,fStatus,fSort].forEach(el=>el.oninput=render);
 function initials(s){return s.split(" ").map(w=>w[0]).slice(0,2).join("");}
-function render(){let l=[...EXAMS];const s=q.value.toLowerCase();
+function render(){let l=[...EXAMS].filter(isPublic);const s=q.value.toLowerCase();
 if(s)l=l.filter(e=>(e.title+e.organization+(e.advt_no||"")).toLowerCase().includes(s));
 if(fOrg.value)l=l.filter(e=>e.organization===fOrg.value);
 if(fStatus.value)l=l.filter(e=>e.status===fStatus.value);

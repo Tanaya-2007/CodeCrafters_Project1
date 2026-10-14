@@ -14,8 +14,16 @@
 const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
 let eid=null,edata=null,esel="Interested";
 function renderDetails(){
-eid=new URLSearchParams(location.search).get("id")||EXAMS[0].id;
-edata=EXAMS.find(x=>x.id===eid)||EXAMS[0];esel=getTracker()[edata.id]||"Interested";
+const asked=new URLSearchParams(location.search).get("id");
+eid=asked||(EXAMS[0]&&EXAMS[0].id);
+edata=EXAMS.find(x=>x.id===eid);
+if(!edata){
+  d.innerHTML=asked
+    ? `<div class="panel"><b>🔒 Not available</b><p class="muted">This notice is awaiting admin verification or was removed — unverified exams are never shown to candidates.</p><a class="btn sm" href="explore.html">← Back to verified exams</a></div>`
+    : `<div class="panel"><p class="muted">Loading live notices…</p></div>`;
+  return;
+}
+esel=getTracker()[edata.id]||"Interested";
 const e=edata,t=getTracker();const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
 d.innerHTML=`<div class="row" style="justify-content:space-between"><span class="org">${e.organization}</span>${e.updated?'<span class="badge b-updated">✦ Official update — field changed</span>':statusBadge(e.status)}</div>
 <h1 style="margin:8px 0;letter-spacing:-.6px;font-size:clamp(22px,3vw,30px)">${e.title}</h1>

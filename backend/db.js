@@ -154,10 +154,11 @@ async function getExam(id) {
 }
 async function listUpdates(limit = 50) {
   if (pg) {
-    const r = await pg.query(`SELECT u.*, e.title AS exam_title, e.status FROM exam_updates u JOIN exams e ON e.id=u.exam_id ORDER BY u.detected_at DESC LIMIT $1`, [limit]);
+    const r = await pg.query(`SELECT u.*, e.title AS exam_title, e.status FROM exam_updates u JOIN exams e ON e.id=u.exam_id WHERE e.status IN ('Verified','Updated') ORDER BY u.detected_at DESC LIMIT $1`, [limit]);
     return r.rows.map(h => ({ exam_title: h.exam_title, status: h.status, at: new Date(h.detected_at).toISOString().slice(0, 10), msg: describeUpdate(h) }));
   }
-  return mem.updates.slice(0, limit).map(u => {
+  const pub = new Set(mem.exams.filter(e => ['Verified', 'Updated'].includes(e.status)).map(e => e.id));
+  return mem.updates.filter(u => pub.has(u.exam_id)).slice(0, limit).map(u => {
     const e = mem.exams.find(x => x.id === u.exam_id);
     return { exam_title: u.exam_title, status: e?.status || 'Updated', at: u.detected_at.slice(0, 10), msg: 'Change detected: ' + Object.entries(u.changed_fields).map(([k, v]) => `${k} ${v[0] || '—'} → ${v[1] || '—'}`).join(', ') + ' → status Updated' };
   });

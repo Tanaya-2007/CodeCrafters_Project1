@@ -34,15 +34,16 @@ return `<article class="card"><div class="card-top"><div class="avatar" style="b
 <div class="row" style="margin-top:6px"><a class="btn sm" href="exam-details.html?id=${e.id}">Open details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}');render()">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div>
 <div class="muted" style="margin-top:8px;font-size:11.5px">Last checked ${new Date(e.last_checked).toLocaleString()}</div></article>`;}
 function render(){const t=getTracker();
-document.getElementById("k1").textContent=EXAMS.filter(e=>{const n=daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;}).length;
+const PUB=EXAMS.filter(isPublic);
+document.getElementById("k1").textContent=PUB.filter(e=>{const n=daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;}).length;
 document.getElementById("k2").textContent=Object.keys(t).length;
-document.getElementById("k3").textContent=EXAMS.filter(e=>e.updated).length;
+document.getElementById("k3").textContent=PUB.filter(e=>e.updated).length;
 document.getElementById("k4").textContent=pendingAlerts().length;
-const soon=[...EXAMS].filter(e=>daysLeft(e.application_end)!==null&&daysLeft(e.application_end)>=0).sort((a,b)=>a.application_end.localeCompare(b.application_end)).slice(0,3);
+const soon=[...PUB].filter(e=>daysLeft(e.application_end)!==null&&daysLeft(e.application_end)>=0).sort((a,b)=>a.application_end.localeCompare(b.application_end)).slice(0,3);
 document.getElementById("soon").innerHTML=soon.map(e=>`<div class="notif"><div class="nicon" style="background:#fef3c7">⏰</div><div style="flex:1"><b>${e.title}</b><br><span class="muted">${fullCountdown(e)} · ends ${e.application_end}</span><div class="bar"><i style="width:${urgency(e)}%"></i></div></div><a class="btn sm ghost" href="exam-details.html?id=${e.id}">Open</a></div>`).join("");
 const ids=Object.keys(t);
 document.getElementById("mine").innerHTML=ids.length?ids.slice(0,4).map(id=>{const e=EXAMS.find(x=>x.id===id);return e?`<div class="notif"><div class="nicon" style="background:#e4e8ff">📌</div><div><b>${e.title}</b><br><span class="muted">${t[id]} · ${countdownText(e)}</span></div></div>`:"";}).join(""):'<p class="muted">Nothing tracked yet.<br><a href="explore.html">Explore exams →</a></p>';
-document.getElementById("grid").innerHTML=[...EXAMS].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("")||'<div class="panel">No verified notices yet — fresh items await admin approval.</div>';
+document.getElementById("grid").innerHTML=[...PUB].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("")||'<div class="panel">No verified notices yet — fresh items await admin approval.</div>';
 try{document.getElementById("nudge").style.display=(typeof getProfile==='function'&&!getProfile())?'':'none';}catch(_){}}
 document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>

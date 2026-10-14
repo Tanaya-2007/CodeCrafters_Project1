@@ -12,7 +12,7 @@
 <script>
 function pill(v){return v==='eligible'?'<span class="badge b-verified">✓ Eligible</span>':v==='preparing'?'<span class="badge b-updated">◷ One step away</span>':'<span class="badge b-new">Later</span>';}
 function liveFor(fid){
-  return EXAMS.filter(n=>{const f=familyForNotice(n);return f&&f.id===fid;}).slice(0,2);
+  return EXAMS.filter(n=>isPublic(n)&&(()=>{const f=familyForNotice(n);return f&&f.id===fid;})()).slice(0,2);
 }
 function render(){
   const p=getProfile();
