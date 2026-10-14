@@ -1,0 +1,165 @@
+================================================================
+SarkariTrack — Competitive Exam & Recruitment Dashboard (PS-1)
+Team project overview — plain-English guide for all members
+================================================================
+
+1. WHAT IS THIS PROJECT?
+------------------------
+Candidates for government exams (UPSC, SSC, Railways, Banking, State
+PSC, Postal, Defence) must check many official portals daily for
+notifications, deadlines, exam dates, syllabus changes and admit cards.
+Information is scattered, so people miss deadlines.
+
+SarkariTrack is ONE centralized dashboard that:
+  - collects updates from official government portals automatically,
+  - converts them into clean, validated records,
+  - lets each user track their own applications with countdowns,
+  - sends deadline / update alerts,
+  - keeps an admin in control of what goes public.
+
+Problem Statement: PS-1, Competitive Exam & Recruitment.
+
+
+2. TECH STACK (do not change without team agreement)
+---------------------------------------------------
+  Frontend : HTML + CSS + vanilla JavaScript (no frameworks)
+  Backend  : Node.js + Express (REST JSON API, serves the frontend too)
+  Database : PostgreSQL (teammate-owned, see database/schema.sql)
+  Scheduler: node-cron inside the backend (checks portals every 6 hours)
+  Parsing  : cheerio (server-side HTML parsing of official pages)
+
+
+3. HOW THE SYSTEM WORKS (end to end)
+------------------------------------
+  1. SCHEDULER wakes up (every 6 hours, at server start, or when an
+     admin presses "Run check now").
+  2. SCRAPER fetches each official portal (polite: browser user-agent,
+     15-second timeout, one portal at a time, 1-second gap, max 25
+     notices per portal, one retry on failure).
+  3. VALIDATION runs on every notice:
+       - organisation + title + official URL must exist (else discarded),
+       - end date must not precede start date (bad date dropped),
+       - SHA-256 fingerprint decides duplicate vs changed.
+  4. MODERATION (admin verification — nothing auto-publishes):
+       - fresh notices enter as New (hidden from candidates),
+       - ambiguous notices enter as Needs Review,
+       - admin Approves -> Verified (public) or Rejects (hidden forever),
+       - "Approve all New" publishes a backlog in one click (logged).
+  5. CHANGE DETECTION: re-scraped notices are compared field-by-field
+     with the stored copy. Changed fields -> status Updated + a row in
+     the update history. Identical -> only the last-checked time moves.
+  6. DASHBOARD shows Verified/Updated records only, with live
+     countdowns computed from deadlines.
+  7. USER TRACKS an exam -> status pipeline:
+     Interested -> Applied -> Admit Card -> Exam Done -> Completed
+     (server-enforced: forward one step only, repeats idempotent,
+     backward/jump attempts rejected, Completed never wraps around).
+  8. ALERTS: in-app notifications at 7 days + 1 day before deadlines
+     plus official-update alerts, per the user's preferences.
+  9. FAILURE RULE: a portal failing only writes a job log
+     (Source Unavailable). Trusted stored data is NEVER deleted.
+
+
+4. LIVE OFFICIAL SOURCES (backend/scrape.js — all verified reachable)
+---------------------------------------------------------------------
+  LIVE (return real notices today):
+    - Union Public Service Commission .... https://upsc.gov.in
+    - Railway Recruitment Board .......... https://rrbcdg.gov.in
+    - IBPS (banking) ..................... https://www.ibps.in
+    - UP Public Service Commission ....... https://uppsc.up.nic.in
+    - India Post GDS (postal) ............ https://indiapostgdsonline.gov.in
+    - Indian Army (defence) .............. https://joinindianarmy.nic.in
+  TRACKED BUT EMPTY (browser-only sites, no server-parseable content;
+  reported honestly, zero fake rows — headless-JS upgrade later):
+    - Staff Selection Commission ......... https://ssc.gov.in
+    - Reserve Bank of India .............. https://opportunities.rbi.org.in
+  EXCLUDED (block automated checks from servers):
+    - SBI, BPSC — scheduler would only ever report Source Unavailable.
+
+
+5. SCREENS (frontend/, open with backend at http://localhost:3000)
+------------------------------------------------------------------
+  CANDIDATE (login required, role = user):
+    index.html ......... landing + candidate/admin entry points
+    login.html ......... candidate login (backend first, offline fallback)
+    register.html ...... candidate registration
+    dashboard.html ..... deadlines at a glance, closing-soon, my pipeline
+    explore.html ....... search + filters (org, status, urgency, tracked)
+    exam-details.html .. dates, official link, tracker status, history
+    tracker.html ....... My Applications table, tap status to advance
+    notifications.html . deadline + official-update alerts
+    history.html ....... every official change, filterable
+    profile.html ....... name/email, notification prefs, logout
+  ADMIN (separate admin-login.html, role = admin, invisible to users):
+    admin.html ......... health: verified / review / down / updates
+    admin-sources.html . the 8 portals, parser, status, last check
+    admin-review.html .. approval queue (Approve / Reject / Approve all)
+    admin-changes.html . field-level change feed
+    admin-jobs.html .... scheduler audit + "Run check now"
+
+
+6. DATABASE (PostgreSQL — teammate's ownership)
+----------------------------------------------
+  Canonical definition: database/schema.sql (8 tables + 1 view + seeds).
+  - users .............. login + alert_pref_days {7,1}
+  - official_sources ... the 8 portals + last status/check/items
+  - exams .............. notices; dates NULLABLE (listings rarely carry
+                         windows); dedup UNIQUE(org, title, url)
+  - exam_updates ....... JSONB field diffs + snapshots (history pages)
+  - applications ....... server-owned tracker (user, exam, status)
+  - alerts ............. idempotent alerts (unique per user/exam/type/date)
+  - scrape_jobs ........ scheduler audit per portal per run
+  - tokens ............. login sessions (backend only, not shown in UI)
+  - v_exams_public ..... Verified/Updated only (what candidates see)
+  Backend auto-creates these IF NOT EXISTS when DATABASE_URL is set.
+  Without Postgres it runs on ephemeral memory: 100% live data, but
+  everything is forgotten on restart (fine for UI demo, not evaluation).
+
+
+7. HOW TO RUN
+-------------
+  Full live mode (real data):
+    cd backend
+    npm install        (once only)
+    node server.js     (serves site + API at http://localhost:3000)
+    First boot needs ~2 minutes (all portals scraped once).
+    Candidate: register. Admin: admin@sarkari.track / admin123
+    (override with backend/.env — copy .env.example first).
+    Admin first step: Review -> Approve all New (fills the dashboard).
+  UI-only preview (mock data, design checks only):
+    Open frontend/*.html with VS Code Live Server.
+    Banner reads "Demo data" — backend must run for real data.
+  With teammate's Postgres:
+    Put DATABASE_URL=postgres://... in backend/.env and restart.
+    No code changes needed anywhere.
+
+
+8. KEY RULES WE FOLLOW (from the PS, all implemented + tested)
+--------------------------------------------------------------
+  - Official site is the truth; we store its URL + retrieval time.
+  - Required fields present; end >= start; duplicates never duplicate.
+  - Ambiguous extraction -> Needs Review, never auto-published.
+  - Source failure never erases trusted data.
+  - Alerts idempotent (same deadline alerts once).
+  - No dummy data in live mode; no API rate limiting (functionality first).
+  - Tracker transitions are server-validated; Completed is terminal.
+
+
+9. REPO NOTES
+-------------
+  Remote: https://github.com/Tanaya-2007/CodeCrafters_Project1
+  The old Assessment/Result files (wrong problem statement) were fully
+  deleted before this work started. backend/node_modules is git-ignored.
+  Main folders: frontend/ backend/ database/ (+ README.md, this file).
+
+
+10. WHO DOES WHAT (suggested split)
+-----------------------------------
+  - Frontend member(s) ... pages in frontend/ (already built + responsive)
+  - Backend member(s) ... backend/*.js (live, tested: approve/reject,
+                          tracker transitions, scheduler, jobs)
+  - DB member .......... PostgreSQL hosting + run database/schema.sql +
+                         hand over DATABASE_URL (see section 6)
+  - Everyone ........... demo flow: upcoming exams -> open exam + official
+                         link -> track -> countdown -> simulate/update ->
+                         change badge + history -> alert.
