@@ -9,7 +9,7 @@
 <div class="chiprow" id="opts"></div>
 <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn ghost sm" onclick="m.classList.remove('open')">Cancel</button><button class="btn sm" onclick="saveSt()">Save</button></div>
 </div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/prep.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
 let eid=null,edata=null,esel="Interested";
@@ -26,7 +26,9 @@ d.innerHTML=`<div class="row" style="justify-content:space-between"><span class=
 <div class="kpi"><small>🔔 My alerts</small><b>7d + 1d</b><span class="muted"><a href="profile.html">Preferences →</a></span></div></div>
 <div class="row"><button class="btn" onclick="openM()">${t[e.id]?"Update status ("+t[e.id]+")":"+ Track this exam"}</button><a class="btn ghost" href="${e.official_url}" target="_blank">Open official ↗</a><button class="btn ghost" onclick="simulateUpdate();location.reload()">⚡ Simulate update</button></div>
 ${matBlock(e)}
+<div class="panel" id="prepPanel" style="margin-top:14px"></div>
 <div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${e.history.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div><b>${h.at}</b><br><span class="muted">${h.msg}</span></div></div>`).join("")}</div>`;
+paintPrep();
 }
 function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
 function matBlock(e){
@@ -46,6 +48,14 @@ if(!r){applyLocal();return;} // offline → device-local
 if(r.error){toast("Server: "+r.error);renderDetails();return;}
 applyLocal();
 });else applyLocal();}
+function paintPrep(){
+  const e=edata;if(!e)return;
+  const subs=subjectsFor(e),done=getPrep()[e.id]||{},st=prepPct(e);
+  document.getElementById("prepPanel").innerHTML=`<div class="row" style="justify-content:space-between"><b>🎯 My preparation</b>${ringHTML(st.pct)}</div>
+  <p class="muted">${st.done}/${st.total} topics done · ticks save automatically</p>
+  ${subs.map((s,i)=>`<label class="toggle" style="cursor:pointer"><span>${done[i]?'✅':'⬜'} ${s}</span><input type="checkbox" ${done[i]?'checked':''} onchange="togglePrep('${e.id}',${i});paintPrep()" style="width:20px;height:20px;accent-color:#111827"></label>`).join("")}`;
+}
+document.addEventListener("prep-changed",()=>{try{paintPrep();}catch(_){}});
 document.addEventListener("data-changed",renderDetails);renderDetails();
 </script>
 </body></html>
