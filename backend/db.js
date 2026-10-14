@@ -32,7 +32,7 @@ async function init() {
   } else {
     console.warn('[db] DATABASE_URL not set — using ephemeral memory. Data stays 100% live; only restart-persistence is lost.');
   }
-  mem = { users: [], exams: [], updates: [], jobs: [], sources: {}, tokens: {} };
+  mem = { users: [], exams: [], updates: [], jobs: [], sources: {}, tokens: {}, tracks: {} };
   return { mode: 'memory' };
 }
 
@@ -89,7 +89,7 @@ async function upsertExam(sourceId, rec) {
       await pg.query(`INSERT INTO exams(id,source_id,organization,title,advt_no,application_start,application_end,exam_date,admit_card_date,official_url,content_hash,status,last_verified_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())`,
         [id, sourceId, rec.organization, rec.title, rec.advt_no || null, rec.application_start, rec.application_end, rec.exam_date, rec.admit_card_date, rec.official_url, rec.content_hash, rec.status]);
-      return { action: rec.status === 'Needs Review' ? 'review' : 'inserted', id };
+      return { action: rec.status === 'Needs Review' ? 'review' : 'pending', id };
     }
     const cur = f.rows[0];
     if (cur.content_hash === rec.content_hash) {
@@ -123,7 +123,7 @@ async function upsertExam(sourceId, rec) {
   mem.updates.unshift({ id: uid(), exam_id: cur.id, exam_title: cur.title, change_type: 'Updated', changed_fields: changed, detected_at: now() });
   return { action: 'updated', id: cur.id };
 }
-async function listExams({ q = '', org = '', status = '', sort = 'deadline' } = {}) {
+async function listExams({ q = '', org = '', status = '', statuses = null, publicOnly = false, sort = 'deadline' } = {}) {
   let rows;
   if (pg) {
     const r = await pg.query(`SELECT e.*, COALESCE(json_agg(u.* ORDER BY u.detected_at DESC) FILTER (WHERE u.id IS NOT NULL), '[]') AS hist
@@ -136,6 +136,8 @@ async function listExams({ q = '', org = '', status = '', sort = 'deadline' } = 
   if (q) { const s = q.toLowerCase(); rows = rows.filter(e => (e.title + e.organization + (e.advt_no || '')).toLowerCase().includes(s)); }
   if (org) rows = rows.filter(e => e.organization === org);
   if (status) rows = rows.filter(e => e.status === status);
+  if (statuses) rows = rows.filter(e => statuses.includes(e.status));
+  if (publicOnly) rows = rows.filter(e => ['Verified', 'Updated'].includes(e.status));
   rows.sort((a, b) => sort === 'exam' ? (a.exam_date || '9999').localeCompare(b.exam_date || '9999') : (a.application_end || '9999').localeCompare(b.application_end || '9999'));
   return rows;
 }
@@ -231,4 +233,59 @@ async function tokenOwner(authHeader) {
   return mem.tokens[t] || null;
 }
 
-module.exports = { init, ensureSource, listSources, touchSource, upsertExam, listExams, getExam, listUpdates, logJob, listJobs, registerUser, verifyUser, mintToken, tokenOwner };
+// ---- admin moderation: approve (→ public) / reject (hidden forever) ----
+async function setExamStatus(id, status, note) {
+  const at = new Date().toISOString().slice(0, 10);
+  if (pg) {
+    const f = await pg.query('SELECT * FROM exams WHERE id=$1', [id]);
+    if (!f.rows.length) return null;
+    const old = f.rows[0].status;
+    await pg.query('UPDATE exams SET status=$2, updated_at=NOW(), last_verified_at=NOW() WHERE id=$1', [id, status]);
+    await pg.query('INSERT INTO exam_updates(id,exam_id,change_type,changed_fields,old_snapshot,new_snapshot) VALUES($1,$2,$3,$4,$5,$6)',
+      [uid(), id, 'Updated', JSON.stringify({ status: [old, status] }), JSON.stringify({ status: old }), JSON.stringify({ status })]);
+    const all = await listExams();
+    return all.find(e => e.id === id) || null;
+  }
+  const cur = mem.exams.find(e => e.id === id);
+  if (!cur) return null;
+  const old = cur.status;
+  cur.status = status; cur.updated = (status === 'Updated'); cur.last_verified_at = now();
+  cur.history.push({ at, msg: (note || ('status ' + old + ' → ' + status)) });
+  mem.updates.unshift({ id: uid(), exam_id: id, exam_title: cur.title, change_type: 'Updated', changed_fields: { status: [old, status] }, detected_at: now() });
+  const all = await listExams();
+  return all.find(e => e.id === id) || null;
+}
+
+// ---- user tracker: server-owned, forward-only transitions ----
+const TRACK_ORDER = ['Interested', 'Applied', 'Admit Card', 'Exam Done', 'Completed'];
+async function getTracks(userId) {
+  if (pg) {
+    const r = await pg.query('SELECT exam_id, status FROM applications WHERE user_id=$1', [userId]);
+    const out = {}; r.rows.forEach(x => out[x.exam_id] = x.status);
+    return out;
+  }
+  return { ...(mem.tracks[userId] || {}) };
+}
+async function setTrack(userId, examId, status) {
+  if (!TRACK_ORDER.includes(status)) throw Object.assign(new Error('unknown status'), { status: 400 });
+  const exam = await getExam(examId);
+  if (!exam) throw Object.assign(new Error('exam not found'), { status: 404 });
+  const cur = (await getTracks(userId))[examId];
+  if (!cur) {
+    if (status !== 'Interested') throw Object.assign(new Error('tracker starts at Interested'), { status: 400 });
+  } else {
+    const ci = TRACK_ORDER.indexOf(cur), ni = TRACK_ORDER.indexOf(status);
+    if (ni === ci) return { ok: true, status: cur, unchanged: true };
+    if (ni !== ci + 1) throw Object.assign(new Error('tracker moves forward one step only'), { status: 400 });
+  }
+  if (pg) {
+    await pg.query(`INSERT INTO applications(user_id,exam_id,status,updated_at) VALUES($1,$2,$3,NOW())
+      ON CONFLICT(user_id,exam_id) DO UPDATE SET status=EXCLUDED.status, updated_at=NOW()`, [userId, examId, status]);
+  } else {
+    if (!mem.tracks[userId]) mem.tracks[userId] = {};
+    mem.tracks[userId][examId] = status;
+  }
+  return { ok: true, status };
+}
+
+module.exports = { init, ensureSource, listSources, touchSource, upsertExam, listExams, getExam, listUpdates, logJob, listJobs, registerUser, verifyUser, mintToken, tokenOwner, setExamStatus, getTracks, setTrack, TRACK_ORDER };

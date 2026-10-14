@@ -55,7 +55,7 @@ CREATE TABLE exams (
   official_url TEXT NOT NULL,                 -- official notice URL (source of truth)
   vacancies INT,                              -- NULL when not stated
   status VARCHAR(30) NOT NULL DEFAULT 'New'
-    CHECK (status IN ('New','Verified','Needs Review','Updated','Source Unavailable','Expired/Completed')),
+    CHECK (status IN ('New','Verified','Needs Review','Updated','Rejected','Source Unavailable','Expired/Completed')),
   content_hash CHAR(64) NOT NULL,             -- SHA-256(org|title|url|end|exam) → dedup + change detection
   retrieved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- retrieval time (required, PS §11)
   last_verified_at TIMESTAMPTZ,

@@ -22,7 +22,15 @@ return `<tr><td data-l="Exam"><b>${e.title}</b><br><span class="muted">${e.organ
 <td data-l="Deadline">${e.application_end||"—"}<br><b>${countdownText(e)}</b><div class="bar" style="max-width:150px"><i style="width:${urgency(e)}%"></i></div></td>
 <td data-l="Status"><div class="progress-steps">${order.map((_,i)=>`<i class="${i<=idx?"done":""}"></i>`).join("")}</div><button class="chip on" onclick="adv('${k}')">${t[k]} →</button></td>
 <td data-l="Open"><a class="btn sm ghost" href="exam-details.html?id=${k}">Open</a></td></tr>`;}).join("")||`<tr><td colspan="4" style="text-align:center;padding:30px">Nothing tracked yet. <a href="explore.html">Explore exams →</a></td></tr>`;}
-function adv(k){const t=getTracker();t[k]=order[(order.indexOf(t[k])+1)%order.length];setTracker(t);toast("Status → "+t[k]);render();}
+function adv(k){const t=getTracker();
+if(t[k]==="Completed"){toast("Already completed ✓");return;}
+const nxt=order[order.indexOf(t[k]||"Interested")+1]||"Completed";
+const applyLocal=()=>{const x=getTracker();x[k]=nxt;setTracker(x);toast("Status → "+nxt);render();};
+if(window.TrackAPI)TrackAPI.save(k,nxt).then(r=>{
+if(!r){applyLocal();return;} // offline → device-local
+if(r.error){toast("Server kept: "+(t[k]||"Interested"));return;}
+const x=getTracker();x[k]=nxt;setTracker(x);toast("Status → "+nxt);render();
+});else applyLocal();}
 function rm(k){const t=getTracker();delete t[k];setTracker(t);render();}
 document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>

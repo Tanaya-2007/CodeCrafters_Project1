@@ -29,7 +29,7 @@ async function runAll(db, { reason = 'scheduled' } = {}) {
           const { record, status } = validate(raw);
           if (!record) continue; // junk skipped, never stored
           const res = await db.upsertExam(row.id, { ...record, status });
-          if (res.action === 'inserted') stat.inserted++;
+          if (res.action === 'inserted' || res.action === 'pending') stat.inserted++;
           else if (res.action === 'updated') stat.updated++;
           else if (res.action === 'review') stat.review++;
         }

@@ -13,14 +13,18 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@sarkari.track';
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'admin123';
 if (!process.env.ADMIN_PASSWORD) console.warn('[auth] Using default admin password — set ADMIN_PASSWORD in .env');
 
-// ---------- public ----------
+// ---------- public (admin-approved records only — New/Needs Review/Rejected stay hidden) ----------
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 app.get('/api/exams', async (req, res, next) => {
-  try { res.json(await db.listExams({ q: req.query.q || '', org: req.query.org || '', status: req.query.status || '', sort: req.query.sort || 'deadline' })); }
+  try { res.json(await db.listExams({ q: req.query.q || '', org: req.query.org || '', status: req.query.status || '', sort: req.query.sort || 'deadline', publicOnly: true })); }
   catch (e) { next(e); }
 });
 app.get('/api/exams/:id', async (req, res, next) => {
-  try { const e = await db.getExam(req.params.id); if (!e) return res.status(404).json({ error: 'not found' }); res.json(e); }
+  try {
+    const e = await db.getExam(req.params.id);
+    if (!e || !['Verified', 'Updated'].includes(e.status)) return res.status(404).json({ error: 'not found' });
+    res.json(e);
+  }
   catch (e) { next(e); }
 });
 app.get('/api/sources', async (req, res, next) => { try { res.json(await db.listSources()); } catch (e) { next(e); } });
@@ -52,6 +56,22 @@ app.post('/api/auth/admin', async (req, res) => {
   res.status(401).json({ error: 'invalid admin credentials' });
 });
 
+// ---------- user tracker (server-owned, forward-only) ----------
+async function requireUser(req, res, next) {
+  const owner = await db.tokenOwner(req.headers.authorization || '');
+  if (owner && owner.userId && !owner.isAdmin) { req.userId = owner.userId; return next(); }
+  res.status(401).json({ error: 'candidate login required' });
+}
+app.get('/api/tracker', requireUser, async (req, res, next) => {
+  try { res.json(await db.getTracks(req.userId)); } catch (e) { next(e); }
+});
+app.post('/api/tracker', requireUser, async (req, res, next) => {
+  try {
+    const { exam_id = '', status = '' } = req.body || {};
+    res.json(await db.setTrack(req.userId, String(exam_id), String(status)));
+  } catch (e) { next(e); }
+});
+
 // ---------- admin ----------
 async function requireAdmin(req, res, next) {
   const owner = await db.tokenOwner(req.headers.authorization || '');
@@ -59,7 +79,29 @@ async function requireAdmin(req, res, next) {
   res.status(403).json({ error: 'admin only' });
 }
 app.get('/api/review', requireAdmin, async (req, res, next) => {
-  try { res.json(await db.listExams({ status: 'Needs Review' })); } catch (e) { next(e); }
+  try { res.json(await db.listExams({ statuses: ['New', 'Needs Review'], sort: 'deadline' })); } catch (e) { next(e); }
+});
+app.post('/api/admin/exams/:id/approve', requireAdmin, async (req, res, next) => {
+  try {
+    const e = await db.setExamStatus(req.params.id, 'Verified', 'Approved by admin → public');
+    if (!e) return res.status(404).json({ error: 'not found' });
+    res.json(e);
+  } catch (e) { next(e); }
+});
+app.post('/api/admin/exams/:id/reject', requireAdmin, async (req, res, next) => {
+  try {
+    const e = await db.setExamStatus(req.params.id, 'Rejected', 'Rejected by admin → hidden');
+    if (!e) return res.status(404).json({ error: 'not found' });
+    res.json(e);
+  } catch (e) { next(e); }
+});
+app.post('/api/admin/exams/approve-all', requireAdmin, async (req, res, next) => {
+  try {
+    const pending = await db.listExams({ statuses: ['New'] });
+    let n = 0;
+    for (const e of pending) { await db.setExamStatus(e.id, 'Verified', 'Bulk-approved by admin → public'); n++; }
+    res.json({ approved: n });
+  } catch (e) { next(e); }
 });
 app.get('/api/jobs', requireAdmin, async (req, res, next) => {
   try { res.json(await db.listJobs(30)); } catch (e) { next(e); }

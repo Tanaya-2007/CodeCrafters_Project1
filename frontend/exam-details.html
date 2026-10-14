@@ -29,7 +29,13 @@ d.innerHTML=`<div class="row" style="justify-content:space-between"><span class=
 }
 function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
 opts.onclick=ev=>{const b=ev.target.closest(".chip");if(!b)return;esel=b.dataset.s;[...opts.children].forEach(c=>c.classList.toggle("on",c===b));};
-function saveSt(){const tr=getTracker();tr[edata.id]=esel;setTracker(tr);m.classList.remove("open");toast("Status → "+esel);renderDetails();}
+function saveSt(){m.classList.remove("open");
+const applyLocal=()=>{const tr=getTracker();tr[edata.id]=esel;setTracker(tr);toast("Status → "+esel);renderDetails();};
+if(window.TrackAPI)TrackAPI.save(edata.id,esel).then(r=>{
+if(!r){applyLocal();return;} // offline → device-local
+if(r.error){toast("Server: "+r.error);renderDetails();return;}
+applyLocal();
+});else applyLocal();}
 document.addEventListener("data-changed",renderDetails);renderDetails();
 </script>
 </body></html>
