@@ -89,8 +89,9 @@ Problem Statement: PS-1, Competitive Exam & Recruitment.
     register.html ...... candidate registration
     dashboard.html ..... deadlines at a glance, closing-soon, my pipeline
     explore.html ....... search + filters (org, status, urgency, tracked)
-    exam-details.html .. dates, official link, tracker status, history
-    tracker.html ....... My Applications table, tap status to advance
+    compare.html ....... side-by-side: eligibility, salary, overlap
+    exam-details.html .. dates, official link, tracker status, prep %, history
+    tracker.html ....... My Applications + status advance + prep %
     foryou.html ........ Recommended exams for YOU + study material
     notifications.html . deadline + official-update alerts
     history.html ....... every official change, filterable

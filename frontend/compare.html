@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compare Exams — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="compare">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content">
+<div class="sec-head"><div><h2>Compare exams ⚖️</h2><p>Pick any two or three — eligibility, salary, stages, overlap. Figures indicative (metro, 2026).</p></div></div>
+<div class="chiprow" id="pick" style="margin-bottom:14px"></div>
+<div class="tblwrap"><table class="tbl" id="ct" style="min-width:560px"></table></div>
+<p class="muted">Salaries = approximate in-hand incl. DA/HRA for metro postings; check official notifications for exact pay levels. Overlap = shared syllabus core (Quant, Reasoning, English, GK).</p>
+</main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>
+const COLS={
+ 'ssc-cgl':{name:'SSC CGL',rows:['Graduate (any stream; JSO/AAO need specific degrees)','18–32 yrs (post-wise)','No cap within age','₹75–85k (ASO, Level 7)','Tier 1 CBT + Tier 2 (papers + DEST)','Quant · English · Reasoning · GK']},
+ 'ibps-po':{name:'IBPS PO / MT',rows:['Graduate (any stream)','20–30 yrs','No cap within age','₹60–70k (JMGS-I)','Prelims + Mains + Interview','Quant+DI · Puzzles · English · Banking awareness']},
+ 'rrb-ntpc':{name:'RRB NTPC',rows:['12th (UG posts) / Graduate','18–33 yrs','No cap within age','₹50–70k (Level 5–6)','CBT-1 + CBT-2 (+ CBAT/typing)','Maths · Reasoning · Railway GK']},
+ 'upsc-cse':{name:'UPSC CSE',rows:['Graduate (any stream)','21–32 yrs (Gen)','6 attempts (Gen)','₹80k–1L+ (SDM level)','Prelims + Mains (9 papers) + Interview','Polity · History · Geo · Economy · Ethics + CSAT']},
+ 'uppsc':{name:'UPPSC PCS',rows:['Graduate (any stream)','21–40 yrs','No cap within age','₹70–90k (SDM level)','Prelims + Mains + Interview','UP GK + GS like UPSC Prelims']}
+};
+const PARAMS=['Eligibility','Age limit','Attempts','In-hand salary*','Stages','Syllabus core'];
+const OVERLAP={'ssc-cgl|ibps-po':'~70% shared core — CGL leans English/Algebra depth, PO leans DI speed + puzzles.','ssc-cgl|rrb-ntpc':'~75% shared core — NTPC adds railway GK; prepare once, give both.','ibps-po|rrb-ntpc':'~65% shared core — PO needs banking awareness + harder DI.','upsc-cse|uppsc':'~80% shared core — UPPSC adds UP GK; UPSC depth covers both.','ssc-cgl|upsc-cse':'~40% shared core — CSE needs answer-writing + depth; different league.'};
+let sel=['ssc-cgl','ibps-po'];
+pick.innerHTML=Object.entries(COLS).map(([k,v])=>`<button class="chip" data-k="${k}">${v.name}</button>`).join("");
+function paintPick(){[...pick.children].forEach(c=>c.classList.toggle("on",sel.includes(c.dataset.k)));}
+pick.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const k=b.dataset.k;
+if(sel.includes(k)){if(sel.length>2)sel=sel.filter(x=>x!==k);}else{sel.push(k);if(sel.length>3)sel.shift();}
+paintPick();render();};
+function overlapNote(){if(sel.length!==2)return'';const k=[...sel].sort().join('|');
+return `<tr><td><b>Syllabus overlap</b></td>${sel.map(()=>`<td>${OVERLAP[k]||'Strong shared core (Quant, Reasoning, English, GK) with different depth/speed demands.'}</td>`).join('')}</tr>`;}
+function render(){paintPick();
+ct.innerHTML=`<thead><tr><th style="min-width:150px">Parameter</th>${sel.map(k=>`<th>${COLS[k].name}</th>`).join('')}</tr></thead><tbody>`
++PARAMS.map((p,i)=>`<tr><td data-l="Parameter"><b>${p}</b></td>${sel.map(k=>`<td data-l="${COLS[k].name}">${COLS[k].rows[i]}</td>`).join('')}</tr>`).join('')
++overlapNote()+`</tbody>`;}
+render();
+</script>
+</body></html>
