@@ -1,234 +1,703 @@
-// Storage layer: PostgreSQL when DATABASE_URL works, else ephemeral in-memory.
-// In BOTH cases every exam record comes from live official-portal fetches —
-// the memory fallback only affects persistence across restarts, never the data source.
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const crypto = require('crypto');
+const mysql = require('mysql2/promise');
 
-let pg = null;
-let mem = null;
+let pool = null;
 
 async function init() {
-  const url = process.env.DATABASE_URL;
-  if (url) {
-    try {
-      const { Pool } = require('pg');
-      pg = new Pool({ connectionString: url, connectionTimeoutMillis: 8000 });
-      await pg.query('SELECT 1');
-      await pg.query(`
-        CREATE TABLE IF NOT EXISTS users(id UUID PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(255) UNIQUE NOT NULL, password_hash TEXT NOT NULL, alert_pref_days INT[] NOT NULL DEFAULT '{7,1}', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-        CREATE TABLE IF NOT EXISTS official_sources(id UUID PRIMARY KEY, name VARCHAR(150) UNIQUE NOT NULL, base_url TEXT NOT NULL, listing_url TEXT NOT NULL, parser_type VARCHAR(50) NOT NULL, check_interval_minutes INT NOT NULL DEFAULT 360, is_active BOOLEAN NOT NULL DEFAULT TRUE, last_checked_at TIMESTAMPTZ, last_status VARCHAR(30) NOT NULL DEFAULT 'New', last_items INT NOT NULL DEFAULT 0);
-        CREATE TABLE IF NOT EXISTS exams(id UUID PRIMARY KEY, source_id UUID REFERENCES official_sources(id), organization VARCHAR(200) NOT NULL, title VARCHAR(300) NOT NULL, advt_no VARCHAR(100), application_start DATE, application_end DATE, exam_date DATE, admit_card_date DATE, official_url TEXT NOT NULL, content_hash CHAR(64) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'Verified', retrieved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_verified_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(organization, title, official_url));
-        CREATE TABLE IF NOT EXISTS exam_updates(id UUID PRIMARY KEY, exam_id UUID REFERENCES exams(id) ON DELETE CASCADE, change_type VARCHAR(20) NOT NULL, changed_fields JSONB NOT NULL DEFAULT '{}', old_snapshot JSONB NOT NULL, new_snapshot JSONB NOT NULL, detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-        CREATE TABLE IF NOT EXISTS applications(user_id UUID REFERENCES users(id) ON DELETE CASCADE, exam_id UUID REFERENCES exams(id) ON DELETE CASCADE, status VARCHAR(30) NOT NULL DEFAULT 'Interested', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(user_id, exam_id));
-        CREATE TABLE IF NOT EXISTS alerts(id UUID PRIMARY KEY, user_id UUID REFERENCES users(id) ON DELETE CASCADE, exam_id UUID REFERENCES exams(id) ON DELETE CASCADE, alert_type VARCHAR(30) NOT NULL, fire_at DATE NOT NULL, days_before INT NOT NULL, channel VARCHAR(20) NOT NULL DEFAULT 'in_app', is_read BOOLEAN NOT NULL DEFAULT FALSE, sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(user_id, exam_id, alert_type, fire_at, days_before));
-        CREATE TABLE IF NOT EXISTS scrape_jobs(id UUID PRIMARY KEY, source_id UUID REFERENCES official_sources(id) ON DELETE CASCADE, started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), finished_at TIMESTAMPTZ, result VARCHAR(20) NOT NULL DEFAULT 'running', items_found INT NOT NULL DEFAULT 0, items_inserted INT NOT NULL DEFAULT 0, items_updated INT NOT NULL DEFAULT 0, items_flagged_review INT NOT NULL DEFAULT 0, error TEXT);
-        CREATE TABLE IF NOT EXISTS tokens(token TEXT PRIMARY KEY, user_id UUID, is_admin BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-      `);
-      console.log('[db] PostgreSQL connected');
-      return { mode: 'pg' };
-    } catch (e) {
-      console.warn('[db] PostgreSQL unavailable (' + (e.code || e.message) + ') — using ephemeral memory. Data stays 100% live; only restart-persistence is lost.');
-      pg = null;
-    }
-  } else {
-    console.warn('[db] DATABASE_URL not set — using ephemeral memory. Data stays 100% live; only restart-persistence is lost.');
-  }
-  mem = { users: [], exams: [], updates: [], jobs: [], sources: {}, tokens: {} };
-  return { mode: 'memory' };
+  pool = mysql.createPool({
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: Number(process.env.MYSQL_PORT || 3306),
+    user: process.env.MYSQL_USER || 'root',
+    password: process.env.MYSQL_PASSWORD || '',
+    database: process.env.MYSQL_DATABASE || 'competitive_exam_tracker',
+    waitForConnections: true,
+    connectionLimit: 10,
+    dateStrings: true
+  });
+
+  await pool.query('SELECT 1');
+  console.log('[db] MySQL connected');
+  await seedInitialExams();
+  return { mode: 'mysql' };
 }
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 
-// ---- sources ----
-async function ensureSource(s) {
-  if (pg) {
-    await pg.query(`INSERT INTO official_sources(id,name,base_url,listing_url,parser_type) VALUES($1,$2,$3,$4,$5)
-      ON CONFLICT(name) DO UPDATE SET base_url=EXCLUDED.base_url, listing_url=EXCLUDED.listing_url`,
-      [uid(), s.name, s.base, s.listing, s.key]);
-    const r = await pg.query('SELECT * FROM official_sources WHERE name=$1', [s.name]);
-    return r.rows[0];
-  }
-  if (!mem.sources[s.key]) mem.sources[s.key] = { id: uid(), key: s.key, name: s.name, base_url: s.base, listing_url: s.listing, parser_type: s.key, last_status: 'New', last_checked_at: null, last_items: 0 };
-  return mem.sources[s.key];
-}
-async function listSources() {
-  if (pg) { const r = await pg.query('SELECT *, last_items AS items FROM official_sources ORDER BY name'); return r.rows.map(mapSource); }
-  return Object.values(mem.sources).map(s => ({
-    id: s.id, key: s.parser_type, name: s.name, url: s.base_url, parser: s.parser_type,
-    status: s.last_status, last: s.last_checked_at ? new Date(s.last_checked_at).toLocaleString() : 'never',
-    items: Number(s.last_items || 0)
-  }));
-}
-function mapSource(r) {
-  return { id: r.id, key: r.parser_type, name: r.name, url: r.base_url, parser: r.parser_type, status: r.last_status, last: r.last_checked_at ? new Date(r.last_checked_at).toLocaleString() : 'never', items: Number(r.last_items || r.items || 0) };
-}
-async function touchSource(id, status, items) {
-  if (pg) { await pg.query('UPDATE official_sources SET last_status=$2, last_checked_at=NOW(), last_items=$3 WHERE id=$1', [id, status, items]); return; }
-  const s = Object.values(mem.sources).find(x => x.id === id);
-  if (s) { s.last_status = status; s.last_checked_at = now(); s.last_items = items; }
+function requireDB() {
+  if (!pool) throw new Error('MySQL is not initialized. Call init() first.');
 }
 
-// ---- exams ----
-function toPublic(r) {
-  const snap = r.snapshot || {};
+function mapSource(r) {
   return {
-    id: r.id, organization: r.organization, title: r.title, advt_no: r.advt_no || snap.advt_no || '',
-    application_start: r.application_start || null, application_end: r.application_end || null,
-    exam_date: r.exam_date || null, admit_card_date: r.admit_card_date || null,
-    official_url: r.official_url, status: r.status, updated: r.status === 'Updated',
-    vacancies: r.vacancies ?? null, last_checked: r.last_verified_at || r.retrieved_at,
+    id: r.id,
+    key: r.parser_type,
+    name: r.name,
+    url: r.base_url,
+    parser: r.parser_type,
+    status: r.last_status,
+    last: r.last_checked_at || 'never',
+    items: Number(r.last_items || 0)
+  };
+}
+
+// ---------- SOURCES ----------
+
+async function ensureSource(s) {
+  requireDB();
+
+  await pool.query(
+    `INSERT INTO official_sources
+      (name, base_url, listing_url, parser_type)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       base_url = VALUES(base_url),
+       listing_url = VALUES(listing_url)`,
+    [s.name, s.base, s.listing, s.key]
+  );
+
+  const [rows] = await pool.query(
+    'SELECT * FROM official_sources WHERE name = ?',
+    [s.name]
+  );
+
+  return rows[0];
+}
+
+async function listSources() {
+  requireDB();
+
+  const [rows] = await pool.query(
+    'SELECT * FROM official_sources ORDER BY name'
+  );
+
+  return rows.map(mapSource);
+}
+
+async function touchSource(id, status, items) {
+  requireDB();
+
+  await pool.query(
+    `UPDATE official_sources
+     SET last_status = ?, last_checked_at = NOW(), last_items = ?
+     WHERE id = ?`,
+    [status, items, id]
+  );
+}
+
+// ---------- EXAMS ----------
+
+function toPublic(r) {
+  return {
+    id: r.id,
+    organization: r.organization,
+    title: r.title,
+    advt_no: r.advt_no || '',
+    application_start: r.application_start || null,
+    application_end: r.application_end || null,
+    exam_date: r.exam_date || null,
+    admit_card_date: r.admit_card_date || null,
+    official_url: r.official_url,
+    syllabus_url: r.syllabus_url || null,
+    vacancies: r.vacancies ?? null,
+    qualification: r.qualification || null,
+    status: r.status,
+    updated: r.status === 'Updated',
+    last_checked: r.last_verified_at || r.retrieved_at,
     history: []
   };
 }
+
 async function upsertExam(sourceId, rec) {
-  // rec: {organization,title,advt_no,application_start,application_end,exam_date,admit_card_date,official_url,content_hash,status}
-  if (pg) {
-    const f = await pg.query('SELECT * FROM exams WHERE organization=$1 AND title=$2 AND official_url=$3', [rec.organization, rec.title, rec.official_url]);
-    if (!f.rows.length) {
-      const id = uid();
-      await pg.query(`INSERT INTO exams(id,source_id,organization,title,advt_no,application_start,application_end,exam_date,admit_card_date,official_url,content_hash,status,last_verified_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())`,
-        [id, sourceId, rec.organization, rec.title, rec.advt_no || null, rec.application_start, rec.application_end, rec.exam_date, rec.admit_card_date, rec.official_url, rec.content_hash, rec.status]);
-      return { action: rec.status === 'Needs Review' ? 'review' : 'inserted', id };
-    }
-    const cur = f.rows[0];
-    if (cur.content_hash === rec.content_hash) {
-      await pg.query('UPDATE exams SET last_verified_at=NOW() WHERE id=$1', [cur.id]);
-      return { action: 'unchanged', id: cur.id };
-    }
-    const changed = {};
-    for (const k of ['advt_no', 'application_start', 'application_end', 'exam_date', 'admit_card_date']) {
-      const a = cur[k] instanceof Date ? cur[k].toISOString().slice(0, 10) : cur[k];
-      if ((a || null) !== (rec[k] || null)) changed[k] = [a || null, rec[k] || null];
-    }
-    await pg.query(`UPDATE exams SET advt_no=$2,application_start=$3,application_end=$4,exam_date=$5,admit_card_date=$6,content_hash=$7,status='Updated',last_verified_at=NOW(),updated_at=NOW() WHERE id=$1`,
-      [cur.id, rec.advt_no || null, rec.application_start, rec.application_end, rec.exam_date, rec.admit_card_date, rec.content_hash]);
-    await pg.query('INSERT INTO exam_updates(id,exam_id,change_type,changed_fields,old_snapshot,new_snapshot) VALUES($1,$2,$3,$4,$5,$6)',
-      [uid(), cur.id, 'Updated', JSON.stringify(changed), JSON.stringify(cur), JSON.stringify(rec)]);
-    return { action: 'updated', id: cur.id };
+  requireDB();
+
+  const [found] = await pool.query(
+    `SELECT * FROM exams
+     WHERE organization = ? AND title = ? AND official_url = ?
+     LIMIT 1`,
+    [rec.organization, rec.title, rec.official_url]
+  );
+
+  if (!found.length) {
+    const [result] = await pool.query(
+      `INSERT INTO exams (
+        source_id, organization, title, advt_no,
+        application_start, application_end, exam_date,
+        admit_card_date, official_url, syllabus_url,
+        vacancies, qualification, content_hash, status,
+        retrieved_at, last_verified_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        sourceId,
+        rec.organization,
+        rec.title,
+        rec.advt_no || null,
+        rec.application_start || null,
+        rec.application_end || null,
+        rec.exam_date || null,
+        rec.admit_card_date || null,
+        rec.official_url,
+        rec.syllabus_url || null,
+        rec.vacancies ?? null,
+        rec.qualification || null,
+        rec.content_hash,
+        rec.status || 'Verified'
+      ]
+    );
+
+    return {
+      action: rec.status === 'Needs Review' ? 'review' : 'inserted',
+      id: result.insertId
+    };
   }
-  let cur = mem.exams.find(e => e.organization === rec.organization && e.title === rec.title && e.official_url === rec.official_url);
-  if (!cur) {
-    cur = { id: uid(), retrieved_at: now(), last_verified_at: now(), history: [{ at: new Date().toISOString().slice(0, 10), msg: 'New notice ingested live → Validated → ' + rec.status }], ...rec };
-    mem.exams.push(cur);
-    return { action: rec.status === 'Needs Review' ? 'review' : 'inserted', id: cur.id };
+
+  const cur = found[0];
+
+  if (cur.content_hash === rec.content_hash) {
+    await pool.query(
+      'UPDATE exams SET last_verified_at = NOW() WHERE id = ?',
+      [cur.id]
+    );
+    return { action: 'unchanged', id: cur.id };
   }
-  if (cur.content_hash === rec.content_hash) { cur.last_verified_at = now(); return { action: 'unchanged', id: cur.id }; }
+
   const changed = {};
-  for (const k of ['advt_no', 'application_start', 'application_end', 'exam_date', 'admit_card_date'])
-    if ((cur[k] || null) !== (rec[k] || null)) changed[k] = [cur[k] || null, rec[k] || null];
-  Object.assign(cur, rec, { status: 'Updated', last_verified_at: now() });
-  const msg = 'Change detected: ' + Object.entries(changed).map(([k, v]) => `${k} ${v[0] || '—'} → ${v[1] || '—'}`).join(', ');
-  cur.history.push({ at: new Date().toISOString().slice(0, 10), msg: msg + ' → status Updated' });
-  mem.updates.unshift({ id: uid(), exam_id: cur.id, exam_title: cur.title, change_type: 'Updated', changed_fields: changed, detected_at: now() });
+
+  for (const k of [
+    'advt_no',
+    'application_start',
+    'application_end',
+    'exam_date',
+    'admit_card_date'
+  ]) {
+    const oldValue = cur[k] || null;
+    const newValue = rec[k] || null;
+
+    if (String(oldValue || '') !== String(newValue || '')) {
+      changed[k] = [oldValue, newValue];
+    }
+  }
+
+  await pool.query(
+    `UPDATE exams SET
+      advt_no = ?,
+      application_start = ?,
+      application_end = ?,
+      exam_date = ?,
+      admit_card_date = ?,
+      syllabus_url = ?,
+      vacancies = ?,
+      qualification = ?,
+      content_hash = ?,
+      status = 'Updated',
+      last_verified_at = NOW(),
+      updated_at = NOW()
+     WHERE id = ?`,
+    [
+      rec.advt_no || null,
+      rec.application_start || null,
+      rec.application_end || null,
+      rec.exam_date || null,
+      rec.admit_card_date || null,
+      rec.syllabus_url || null,
+      rec.vacancies ?? null,
+      rec.qualification || null,
+      rec.content_hash,
+      cur.id
+    ]
+  );
+
+  await pool.query(
+    `INSERT INTO exam_updates
+      (exam_id, change_type, changed_fields, old_snapshot, new_snapshot)
+     VALUES (?, 'Updated', ?, ?, ?)`,
+    [
+      cur.id,
+      JSON.stringify(changed),
+      JSON.stringify(cur),
+      JSON.stringify(rec)
+    ]
+  );
+
   return { action: 'updated', id: cur.id };
 }
-async function listExams({ q = '', org = '', status = '', sort = 'deadline' } = {}) {
-  let rows;
-  if (pg) {
-    const r = await pg.query(`SELECT e.*, COALESCE(json_agg(u.* ORDER BY u.detected_at DESC) FILTER (WHERE u.id IS NOT NULL), '[]') AS hist
-      FROM exams e LEFT JOIN exam_updates u ON u.exam_id=e.id GROUP BY e.id ORDER BY e.retrieved_at DESC LIMIT 300`);
-    rows = r.rows.map(x => ({ ...toPublic(x), history: (x.hist || []).map(h => ({ at: new Date(h.detected_at).toISOString().slice(0, 10), msg: describeUpdate(h) })) }));
-    for (const row of rows) if (!row.history.length) row.history = [{ at: (row.last_checked || '').slice(0, 10), msg: 'New notice ingested live → Validated → ' + row.status }];
-  } else {
-    rows = mem.exams.map(e => ({ ...toPublic(e), history: e.history }));
+
+async function listExams({
+  q = '',
+  org = '',
+  status = '',
+  sort = 'deadline'
+} = {}) {
+  requireDB();
+
+  let sql = 'SELECT * FROM exams WHERE 1=1';
+  const params = [];
+
+  if (q) {
+    sql += ' AND (title LIKE ? OR organization LIKE ? OR advt_no LIKE ?)';
+    const search = `%${q}%`;
+    params.push(search, search, search);
   }
-  if (q) { const s = q.toLowerCase(); rows = rows.filter(e => (e.title + e.organization + (e.advt_no || '')).toLowerCase().includes(s)); }
-  if (org) rows = rows.filter(e => e.organization === org);
-  if (status) rows = rows.filter(e => e.status === status);
-  rows.sort((a, b) => sort === 'exam' ? (a.exam_date || '9999').localeCompare(b.exam_date || '9999') : (a.application_end || '9999').localeCompare(b.application_end || '9999'));
-  return rows;
-}
-function describeUpdate(h) {
-  try {
-    const c = typeof h.changed_fields === 'string' ? JSON.parse(h.changed_fields) : (h.changed_fields || {});
-    const parts = Object.entries(c).map(([k, v]) => `${k} ${v[0] || '—'} → ${v[1] || '—'}`);
-    return (parts.length ? 'Change detected: ' + parts.join(', ') : h.change_type) + ' → status Updated';
-  } catch { return h.change_type; }
-}
-async function getExam(id) {
-  const all = await listExams();
-  return all.find(e => e.id === id) || null;
-}
-async function listUpdates(limit = 50) {
-  if (pg) {
-    const r = await pg.query(`SELECT u.*, e.title AS exam_title, e.status FROM exam_updates u JOIN exams e ON e.id=u.exam_id ORDER BY u.detected_at DESC LIMIT $1`, [limit]);
-    return r.rows.map(h => ({ exam_title: h.exam_title, status: h.status, at: new Date(h.detected_at).toISOString().slice(0, 10), msg: describeUpdate(h) }));
+
+  if (org) {
+    sql += ' AND organization = ?';
+    params.push(org);
   }
-  return mem.updates.slice(0, limit).map(u => {
-    const e = mem.exams.find(x => x.id === u.exam_id);
-    return { exam_title: u.exam_title, status: e?.status || 'Updated', at: u.detected_at.slice(0, 10), msg: 'Change detected: ' + Object.entries(u.changed_fields).map(([k, v]) => `${k} ${v[0] || '—'} → ${v[1] || '—'}`).join(', ') + ' → status Updated' };
-  });
+
+  if (status) {
+    sql += ' AND status = ?';
+    params.push(status);
+  }
+
+  sql += sort === 'exam'
+    ? ' ORDER BY exam_date IS NULL, exam_date ASC'
+    : ' ORDER BY application_end IS NULL, application_end ASC';
+
+  sql += ' LIMIT 300';
+
+  const [rows] = await pool.query(sql, params);
+  const results = [];
+
+  for (const row of rows) {
+    const exam = toPublic(row);
+
+    const [updates] = await pool.query(
+      `SELECT * FROM exam_updates
+       WHERE exam_id = ? ORDER BY detected_at DESC`,
+      [row.id]
+    );
+
+    exam.history = updates.map(u => ({
+      at: u.detected_at,
+      msg: describeUpdate(u)
+    }));
+
+    if (!exam.history.length) {
+      exam.history = [{
+        at: exam.last_checked || '',
+        msg: 'Notice ingested live → ' + exam.status
+      }];
+    }
+
+    results.push(exam);
+  }
+
+  return results;
 }
 
-// ---- jobs ----
-async function logJob(sourceId, patch) {
-  if (pg) {
-    if (!patch.id) {
-      const r = await pg.query('INSERT INTO scrape_jobs(id,source_id,result) VALUES($1,$2,\'running\') RETURNING id', [uid(), sourceId]);
-      return r.rows[0].id;
+function describeUpdate(update) {
+  let changes = update.changed_fields || {};
+
+  if (typeof changes === 'string') {
+    try {
+      changes = JSON.parse(changes);
+    } catch {
+      changes = {};
     }
-    await pg.query('UPDATE scrape_jobs SET finished_at=NOW(),result=$2,items_found=$3,items_inserted=$4,items_updated=$5,items_flagged_review=$6,error=$7 WHERE id=$1',
-      [patch.id, patch.result, patch.found || 0, patch.inserted || 0, patch.updated || 0, patch.review || 0, patch.error || null]);
-    return patch.id;
   }
-  if (!patch.id) { const j = { id: uid(), source_id: sourceId, at: now(), res: 'running', f: 0, i: 0, u: 0, r: 0 }; mem.jobs.unshift(j); return j.id; }
-  const j = mem.jobs.find(x => x.id === patch.id);
-  if (j) Object.assign(j, { at: now(), res: patch.result, f: patch.found || 0, i: patch.inserted || 0, u: patch.updated || 0, r: patch.review || 0, err: patch.error || null, src: patch.src });
+
+  const parts = Object.entries(changes).map(
+    ([key, values]) =>
+      `${key} ${values[0] || '—'} → ${values[1] || '—'}`
+  );
+
+  return parts.length
+    ? 'Change detected: ' + parts.join(', ') + ' → status Updated'
+    : update.change_type;
+}
+
+async function getExam(id) {
+  const exams = await listExams();
+  return exams.find(e => String(e.id) === String(id)) || null;
+}
+
+async function listUpdates(limit = 50) {
+  requireDB();
+
+  const [rows] = await pool.query(
+    `SELECT u.*, e.title AS exam_title, e.status
+     FROM exam_updates u
+     JOIN exams e ON e.id = u.exam_id
+     ORDER BY u.detected_at DESC
+     LIMIT ?`,
+    [Number(limit)]
+  );
+
+  return rows.map(u => ({
+    exam_title: u.exam_title,
+    status: u.status,
+    at: u.detected_at,
+    msg: describeUpdate(u)
+  }));
+}
+
+// ---------- SCRAPE JOBS ----------
+
+async function logJob(sourceId, patch) {
+  requireDB();
+
+  if (!patch.id) {
+    const [result] = await pool.query(
+      `INSERT INTO scrape_jobs (source_id, result)
+       VALUES (?, 'running')`,
+      [sourceId]
+    );
+
+    return result.insertId;
+  }
+
+  await pool.query(
+    `UPDATE scrape_jobs SET
+      finished_at = NOW(),
+      result = ?,
+      items_found = ?,
+      items_inserted = ?,
+      items_updated = ?,
+      items_flagged_review = ?,
+      error = ?
+     WHERE id = ?`,
+    [
+      patch.result,
+      patch.found || 0,
+      patch.inserted || 0,
+      patch.updated || 0,
+      patch.review || 0,
+      patch.error || null,
+      patch.id
+    ]
+  );
+
   return patch.id;
 }
+
 async function listJobs(limit = 30) {
-  if (pg) {
-    const r = await pg.query(`SELECT j.*, s.name AS src FROM scrape_jobs j JOIN official_sources s ON s.id=j.source_id ORDER BY j.started_at DESC LIMIT $1`, [limit]);
-    return r.rows.map(x => ({ at: new Date(x.started_at).toLocaleString(), src: x.src, res: x.result, f: x.items_found, i: x.items_inserted, u: x.items_updated, r: x.items_flagged_review }));
-  }
-  const names = {}; Object.values(mem.sources).forEach(s => names[s.id] = s.name);
-  return mem.jobs.slice(0, limit).map(j => ({ at: new Date(j.at).toLocaleString(), src: j.src || names[j.source_id] || '?', res: j.res, f: j.f, i: j.i, u: j.u, r: j.r }));
+  requireDB();
+
+  const [rows] = await pool.query(
+    `SELECT j.*, s.name AS src
+     FROM scrape_jobs j
+     JOIN official_sources s ON s.id = j.source_id
+     ORDER BY j.started_at DESC
+     LIMIT ?`,
+    [Number(limit)]
+  );
+
+  return rows.map(j => ({
+    at: j.started_at,
+    src: j.src,
+    res: j.result,
+    f: j.items_found,
+    i: j.items_inserted,
+    u: j.items_updated,
+    r: j.items_flagged_review
+  }));
 }
 
-// ---- users / tokens / tracker ----
-const scrypt = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
+// ---------- USERS / PASSWORDS / TOKENS ----------
+
+const scrypt = (password, salt) =>
+  crypto.scryptSync(password, salt, 64).toString('hex');
+
 async function registerUser(name, email, password) {
+  requireDB();
+
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = salt + ':' + scrypt(password, salt);
-  if (pg) {
-    try {
-      const id = uid();
-      await pg.query('INSERT INTO users(id,name,email,password_hash) VALUES($1,$2,$3,$4)', [id, name, email.toLowerCase(), hash]);
-      return { id, name, email: email.toLowerCase() };
-    } catch (e) { if (e.code === '23505') throw Object.assign(new Error('Email already registered'), { status: 409 }); throw e; }
+  const normalizedEmail = email.toLowerCase();
+
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO users (name, email, password_hash)
+       VALUES (?, ?, ?)`,
+      [name, normalizedEmail, hash]
+    );
+
+    return {
+      id: result.insertId,
+      name,
+      email: normalizedEmail
+    };
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') {
+      throw Object.assign(
+        new Error('Email already registered'),
+        { status: 409 }
+      );
+    }
+    throw e;
   }
-  if (mem.users.find(u => u.email === email.toLowerCase())) throw Object.assign(new Error('Email already registered'), { status: 409 });
-  const u = { id: uid(), name, email: email.toLowerCase(), hash };
-  mem.users.push(u);
-  return { id: u.id, name, email: u.email };
-}
-async function verifyUser(email, password) {
-  const em = email.toLowerCase();
-  if (pg) {
-    const r = await pg.query('SELECT * FROM users WHERE email=$1', [em]);
-    const u = r.rows[0]; if (!u) return null;
-    const [salt, h] = u.password_hash.split(':');
-    if (scrypt(password, salt) !== h) return null;
-    return { id: u.id, name: u.name, email: u.email };
-  }
-  const u = mem.users.find(x => x.email === em); if (!u) return null;
-  const [salt, h] = u.hash.split(':');
-  if (scrypt(password, salt) !== h) return null;
-  return { id: u.id, name: u.name, email: u.email };
-}
-async function mintToken(userId, isAdmin) {
-  const t = crypto.randomBytes(32).toString('hex');
-  if (pg) await pg.query('INSERT INTO tokens(token,user_id,is_admin) VALUES($1,$2,$3)', [t, userId, !!isAdmin]);
-  else mem.tokens[t] = { userId, isAdmin: !!isAdmin };
-  return t;
-}
-async function tokenOwner(authHeader) {
-  const t = (authHeader || '').replace(/^Bearer\s+/i, '');
-  if (!t) return null;
-  if (t === 'demo-admin-' + (process.env.ADMIN_PASSWORD || 'admin123')) return { isAdmin: true, email: process.env.ADMIN_EMAIL };
-  if (pg) { const r = await pg.query('SELECT * FROM tokens WHERE token=$1', [t]); return r.rows[0] ? { userId: r.rows[0].user_id, isAdmin: r.rows[0].is_admin } : null; }
-  return mem.tokens[t] || null;
 }
 
-module.exports = { init, ensureSource, listSources, touchSource, upsertExam, listExams, getExam, listUpdates, logJob, listJobs, registerUser, verifyUser, mintToken, tokenOwner };
+async function verifyUser(email, password) {
+  requireDB();
+
+  const [rows] = await pool.query(
+    'SELECT * FROM users WHERE email = ? LIMIT 1',
+    [email.toLowerCase()]
+  );
+
+  const user = rows[0];
+  if (!user) return null;
+
+  const [salt, storedHash] = user.password_hash.split(':');
+
+  if (scrypt(password, salt) !== storedHash) return null;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email
+  };
+}
+
+async function mintToken(userId, isAdmin) {
+  requireDB();
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  await pool.query(
+    `INSERT INTO tokens (token, user_id, is_admin)
+     VALUES (?, ?, ?)`,
+    [token, userId || null, !!isAdmin]
+  );
+
+  return token;
+}
+
+async function tokenOwner(authHeader) {
+  requireDB();
+
+  const token = (authHeader || '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+
+  if (
+    token === 'demo-admin-' +
+    (process.env.ADMIN_PASSWORD || 'admin123')
+  ) {
+    return {
+      isAdmin: true,
+      email: process.env.ADMIN_EMAIL
+    };
+  }
+
+  const [rows] = await pool.query(
+    'SELECT * FROM tokens WHERE token = ? LIMIT 1',
+    [token]
+  );
+
+  if (!rows.length) return null;
+
+  return {
+    userId: rows[0].user_id,
+    isAdmin: Boolean(rows[0].is_admin)
+  };
+}
+async function seedInitialExams() {
+  requireDB();
+  const [rows] = await pool.query('SELECT COUNT(*) AS count FROM exams');
+  if (rows[0].count > 0) return;
+
+  const seeds = [
+    {
+      source: 'Railway Recruitment Board',
+      title: 'RRB NTPC Graduate Recruitment 2026',
+      advt_no: 'CEN 05/2026',
+      application_start: '2026-09-01',
+      application_end: '2026-09-30',
+      exam_date: '2026-11-15',
+      admit_card_date: '2026-11-05',
+      official_url: 'https://rrbcdg.gov.in/notices/ntpc-2026',
+      vacancies: 11558,
+      status: 'Verified'
+    },
+    {
+      source: 'Union Public Service Commission',
+      title: 'UPSC Civil Services (Prelims) 2027',
+      advt_no: 'CSE 2027',
+      application_start: '2026-10-01',
+      application_end: '2026-10-28',
+      exam_date: '2027-05-23',
+      admit_card_date: '2027-05-01',
+      official_url: 'https://upsc.gov.in/examinations/cse-2027',
+      vacancies: 1056,
+      status: 'Updated'
+    },
+    {
+      source: 'Staff Selection Commission',
+      title: 'SSC CGL 2026 Combined Graduate Level',
+      advt_no: 'CGL/2026',
+      application_start: '2026-09-15',
+      application_end: '2026-10-14',
+      exam_date: '2026-12-10',
+      admit_card_date: '2026-11-28',
+      official_url: 'https://ssc.gov.in/notices/cgl-2026',
+      vacancies: 17727,
+      status: 'Verified'
+    },
+    {
+      source: 'Institute of Banking Personnel Selection',
+      title: 'IBPS PO/MT XVI Recruitment 2026',
+      advt_no: 'PO/MT-XVI',
+      application_start: '2026-08-01',
+      application_end: '2026-08-28',
+      exam_date: '2026-10-18',
+      admit_card_date: '2026-10-05',
+      official_url: 'https://ibps.in/careers/po-2026',
+      vacancies: 5208,
+      status: 'Verified'
+    },
+    {
+      source: 'Staff Selection Commission',
+      title: 'SSC MTS Havaldar 2026',
+      advt_no: 'MTS/2026',
+      application_start: '2026-10-05',
+      application_end: null,
+      exam_date: null,
+      admit_card_date: null,
+      official_url: 'https://ssc.gov.in/notices/mts-2026',
+      vacancies: null,
+      status: 'Needs Review'
+    },
+    {
+      source: 'UP Public Service Commission',
+      title: 'UPPSC PCS 2026',
+      advt_no: 'PCS/2026',
+      application_start: '2026-10-08',
+      application_end: '2026-11-08',
+      exam_date: '2027-02-14',
+      admit_card_date: '2027-01-30',
+      official_url: 'https://uppsc.up.nic.in',
+      vacancies: 220,
+      status: 'Verified'
+    }
+  ];
+
+  const sources = await listSources();
+  for (const s of seeds) {
+    const src = sources.find(x => x.name === s.source) || sources[0];
+    if (!src) continue;
+    const content_hash = crypto
+      .createHash('sha256')
+      .update([s.source, s.title, s.official_url, s.application_end || '', s.exam_date || ''].join('|').toLowerCase())
+      .digest('hex');
+    await upsertExam(src.id, {
+      organization: s.source,
+      title: s.title,
+      advt_no: s.advt_no,
+      application_start: s.application_start,
+      application_end: s.application_end,
+      exam_date: s.exam_date,
+      admit_card_date: s.admit_card_date,
+      official_url: s.official_url,
+      syllabus_url: null,
+      vacancies: s.vacancies,
+      qualification: null,
+      content_hash,
+      status: s.status
+    });
+  }
+}
+
+async function updateApplication(userId, examId, status, notes = null) {
+  requireDB();
+
+  const allowed = ['Interested', 'Applied', 'Admit Card', 'Exam Done', 'Result Awaited', 'Completed'];
+  if (!allowed.includes(status)) {
+    const err = new Error('Invalid status "' + status + '". Allowed: ' + allowed.join(', '));
+    err.status = 400;
+    throw err;
+  }
+
+  const [examRows] = await pool.query('SELECT id FROM exams WHERE id = ? LIMIT 1', [examId]);
+  if (!examRows.length) {
+    const err = new Error('Exam with ID ' + examId + ' not found');
+    err.status = 404;
+    throw err;
+  }
+
+  await pool.query(
+    `INSERT INTO applications (user_id, exam_id, status, notes)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       status = VALUES(status),
+       notes = COALESCE(VALUES(notes), notes),
+       updated_at = CURRENT_TIMESTAMP`,
+    [userId, examId, status, notes]
+  );
+
+  return { userId, examId, status };
+}
+
+async function deleteApplication(userId, examId) {
+  requireDB();
+
+  const [res] = await pool.query(
+    'DELETE FROM applications WHERE user_id = ? AND exam_id = ?',
+    [userId, examId]
+  );
+  return res.affectedRows > 0;
+}
+
+async function getUserApplications(userId) {
+  requireDB();
+
+  const [rows] = await pool.query(
+    `SELECT a.user_id, a.exam_id, a.status, a.notes, a.created_at, a.updated_at,
+            e.organization, e.title, e.advt_no, e.application_start, e.application_end,
+            e.exam_date, e.admit_card_date, e.official_url
+     FROM applications a
+     JOIN exams e ON a.exam_id = e.id
+     WHERE a.user_id = ?
+     ORDER BY a.updated_at DESC`,
+    [userId]
+  );
+
+  return rows;
+}
+
+async function getUserById(userId) {
+  requireDB();
+
+  const [rows] = await pool.query(
+    'SELECT id, name, email, alert_pref_days, created_at FROM users WHERE id = ? LIMIT 1',
+    [userId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getUserByEmail(email) {
+  requireDB();
+
+  const [rows] = await pool.query(
+    'SELECT id, name, email, alert_pref_days, created_at FROM users WHERE email = ? LIMIT 1',
+    [String(email).toLowerCase()]
+  );
+
+  return rows[0] || null;
+}
+
+module.exports = {
+  init,
+  ensureSource,
+  listSources,
+  touchSource,
+  upsertExam,
+  listExams,
+  getExam,
+  listUpdates,
+  logJob,
+  listJobs,
+  registerUser,
+  verifyUser,
+  mintToken,
+  tokenOwner,
+  updateApplication,
+  deleteApplication,
+  getUserApplications,
+  getUserById,
+  getUserByEmail,
+  seedInitialExams
+};

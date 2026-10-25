@@ -11,9 +11,31 @@
 <button class="btn" style="width:100%" onclick="doReg()">Create account →</button>
 <p class="muted">Have an account? <a href="login.html">Candidate login</a> · <a href="admin-login.html">Admin login</a></p>
 </div></div>
-<script>async function doReg(){const e=document.getElementById('e').value.trim(),n=document.getElementById('n').value.trim(),p=document.getElementById('p').value;if(!e||!n)return alert('Enter name + email');
-try{const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p||'demo-only'})});
-if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'register failed');}const j=await r.json();localStorage.setItem('st_token',j.token);localStorage.setItem('st_user',j.user.email);localStorage.setItem('st_name',j.user.name);}
-catch(err){if(String(err.message||'').includes('6+'))return alert(err.message);localStorage.setItem('st_user',e);localStorage.setItem('st_name',n);}
-localStorage.setItem('st_role','user');localStorage.removeItem('st_admin');location.href='dashboard.html';}</script>
+<script>
+async function doReg(){
+  const e=document.getElementById('e').value.trim(),n=document.getElementById('n').value.trim(),p=document.getElementById('p').value;
+  if(!e||!n)return alert('Enter name + email');
+  if(!p||p.length<6)return alert('Password must be at least 6 characters');
+  try{
+    const r=await fetch('/api/auth/register',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:n,email:e,password:p})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){
+      return alert(j.error || 'Registration failed');
+    }
+    localStorage.setItem('st_token',j.token);
+    localStorage.setItem('st_user',j.user.email);
+    localStorage.setItem('st_name',j.user.name);
+    if(j.user.id) localStorage.setItem('st_user_id',j.user.id);
+    localStorage.setItem('st_role','user');
+    localStorage.removeItem('st_admin');
+    location.href='dashboard.html';
+  }catch(err){
+    alert('Registration error: ' + (err.message || 'Server unreachable'));
+  }
+}
+</script>
 </body></html>
