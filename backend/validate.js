@@ -25,6 +25,8 @@ function hash(rec) {
 
 // raw: {organization,title,advt_no,application_start,application_end,exam_date,admit_card_date,official_url}
 // → {record|null, status} — null only when the item is junk (never stored).
+// Moderation default: fresh items enter as 'New' (pending admin approval,
+// invisible on the public site). Ambiguous items enter as 'Needs Review'.
 function validate(raw) {
   const title = clean(raw.title);
   if (title.length < 15 || !validURL(raw.official_url)) return { record: null, reason: 'junk' };
@@ -39,7 +41,7 @@ function validate(raw) {
     official_url: raw.official_url
   };
   rec.content_hash = hash(rec);
-  return { record: rec, status: review ? 'Needs Review' : 'Verified' };
+  return { record: rec, status: review ? 'Needs Review' : 'New' };
 }
 
 module.exports = { clean, validURL, parseDate, hash, validate };

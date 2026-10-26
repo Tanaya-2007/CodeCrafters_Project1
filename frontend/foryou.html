@@ -1,0 +1,50 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>For You — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="foryou">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content">
+<div class="sec-head"><div><h2>Recommended for you ✦</h2><p id="sub">Matched to your background + interests.</p></div><a class="btn sm ghost" href="profile.html">Edit background →</a></div>
+<div id="noprof" class="panel" style="display:none">Tell us your qualification & interests first — it takes 30 seconds.<br><br><a class="btn sm" href="profile.html">Set up my profile →</a></div>
+<div id="done"></div>
+</main></div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>
+function pill(v){return v==='eligible'?'<span class="badge b-verified">✓ Eligible</span>':v==='preparing'?'<span class="badge b-updated">◷ One step away</span>':'<span class="badge b-new">Later</span>';}
+function liveFor(fid){
+  return EXAMS.filter(n=>isPublic(n)&&(()=>{const f=familyForNotice(n);return f&&f.id===fid;})()).slice(0,2);
+}
+function render(){
+  const p=getProfile();
+  if(!p){noprof.style.display='';done.innerHTML='';return;}
+  noprof.style.display='none';
+  const q=QUALS.find(x=>x.id===p.qual);
+  sub.textContent=(q?q.label:'')+(p.stream?' · '+p.stream:'')+(p.state?' · '+p.state:'')+((p.interests||[]).length?' · '+p.interests.length+' interests':'');
+  const recs=recommend(p);
+  const groups={eligible:[],preparing:[],later:[]};
+  recs.forEach(r=>groups[r.verdict].push(r));
+  const titles={eligible:'✅ Give these — you qualify now',preparing:'◷ Almost there — unlock next',later:'📚 Build towards these'};
+  done.innerHTML=Object.entries(groups).map(([k,arr])=>arr.length?`<div class="sec-head"><div><h2>${titles[k]}</h2></div></div>
+  <div class="grid">`+arr.map(({f,why})=>{
+    const live=liveFor(f.id);
+    return `<article class="card"><div class="org">${f.org}</div><h3>${f.name}</h3>
+    <div class="row" style="gap:6px;margin:4px 0">${pill(k)}${f.live===false?'<span class="badge b-new">Not tracked live yet</span>':''}</div>
+    <p class="muted">${f.blurb}<br>🎂 ${f.age}<br>💡 ${why}</p>
+    <div class="meta"><b>📖 Crack it with:</b><br>${f.material.subjects.slice(0,4).join(' · ')}<br>
+    <span class="muted">${f.material.books[0]}${f.material.books[1]?' · '+f.material.books[1]:''}</span></div>
+    ${live.length?'<div class="meta">🔴 <b>Live now:</b> '+live.map(n=>`<a href="exam-details.html?id=${n.id}">${n.title.slice(0,60)}…</a>`).join('<br>')+'</div>':''}
+    <div class="row"><a class="btn sm" href="explore.html">Find notices →</a><button class="btn sm ghost" onclick="showMat('${f.id}')">Study material</button></div>
+    <div id="mat-${f.id}"></div></article>`;}).join('')+'</div>':'').join('');
+}
+function showMat(fid){
+  const f=FAMILIES.find(x=>x.id===fid);if(!f)return;
+  const el=document.getElementById('mat-'+fid);
+  el.innerHTML=`<div class="panel" style="background:#f7f8fc;margin-top:10px;padding:16px"><b>📚 ${f.name} — full material</b>
+  <div class="meta"><b>Subjects:</b> ${f.material.subjects.join(' · ')}</div>
+  <div class="meta"><b>Books:</b><br>• ${f.material.books.join('<br>• ')}</div>
+  <div class="meta"><b>Official:</b><br>${f.material.links.map(l=>`• <a href="${l.u}" target="_blank">${l.t} ↗</a>`).join('<br>')}</div></div>`;
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+document.addEventListener('data-changed',render);render();
+</script>
+</body></html>

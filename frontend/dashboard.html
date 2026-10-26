@@ -6,7 +6,8 @@
 <main class="content">
 <div class="hero"><span class="eyebrow">● Live · verified official records</span><h1 id="hi">Namaste 👋</h1>
 <p>One calm place for every deadline — official site stays the truth, we just keep the countdown.</p>
-<div class="cta"><a class="btn" href="explore.html">Explore exams →</a><button class="btn ghost" onclick="simulateUpdate();render()">⚡ Simulate official update</button></div></div>
+<div class="cta"><a class="btn" href="explore.html">Explore exams →</a><a class="btn ghost" href="foryou.html">✦ Recommended for me</a><button class="btn ghost" onclick="simulateUpdate();render()">⚡ Simulate official update</button></div></div>
+<div id="nudge" class="panel" style="display:none;margin-top:14px">🎯 <b>Get exams picked for YOU</b> <span class="muted">— tell us your qualification & interests in 30 seconds.</span> <a class="btn sm" href="profile.html">Set up →</a></div>
 <div class="kpis">
 <div class="kpi"><small>⏰ Closing ≤ 7 days</small><b id="k1">–</b><span class="tr down">act now</span></div>
 <div class="kpi"><small>📌 In my tracker</small><b id="k2">–</b><span class="tr up">personal</span></div>
@@ -18,7 +19,7 @@
 <div class="sec-head"><div><h2>Latest verified notices</h2><p>Sorted by deadline · Updated badge = official field changed · Last-checked = scheduler run</p></div><a href="explore.html">Explore all →</a></div>
 <div class="grid" id="grid"></div>
 </main></div></div><div id="toasts"></div>
-<script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 document.getElementById("hi").textContent = "Namaste, " + ((currentUser()||"").split("@")[0]||"Candidate") + " 👋 — deadlines at a glance";
 function initials(s){return (s||"").split(" ").map(w=>w[0]).slice(0,2).join("");}
@@ -33,9 +34,10 @@ return `<article class="card"><div class="card-top"><div class="avatar" style="b
 <div class="row" style="margin-top:6px"><a class="btn sm" href="exam-details.html?id=${e.id}">Open details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}');render()">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div>
 <div class="muted" style="margin-top:8px;font-size:11.5px">Last checked ${new Date(e.last_checked||Date.now()).toLocaleString()}</div></article>`;}
 function render(){const t=getTracker();
-document.getElementById("k1").textContent=EXAMS.filter(e=>{const n=daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;}).length;
+const PUB=EXAMS.filter(isPublic);
+document.getElementById("k1").textContent=PUB.filter(e=>{const n=daysLeft(e.application_end);return n!==null&&n>=0&&n<=7;}).length;
 document.getElementById("k2").textContent=Object.keys(t).length;
-document.getElementById("k3").textContent=EXAMS.filter(e=>e.updated).length;
+document.getElementById("k3").textContent=PUB.filter(e=>e.updated).length;
 document.getElementById("k4").textContent=pendingAlerts().length;
 const soon=[...EXAMS].filter(e=>daysLeft(e.application_end)!==null&&daysLeft(e.application_end)>=0).sort((a,b)=>(a.application_end||"").localeCompare(b.application_end||"")).slice(0,3);
 document.getElementById("soon").innerHTML=soon.map(e=>`<div class="notif"><div class="nicon" style="background:#fef3c7">⏰</div><div style="flex:1"><b>${e.title}</b><br><span class="muted">${fullCountdown(e)} · ends ${e.application_end}</span><div class="bar"><i style="width:${urgency(e)}%"></i></div></div><a class="btn sm ghost" href="exam-details.html?id=${e.id}">Open</a></div>`).join("");

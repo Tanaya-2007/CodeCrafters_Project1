@@ -34,7 +34,8 @@ browser UA, 15s timeout, sequential + 1s gap, 25 items/source cap.
 
 ## 3. Backend map (`backend/`)
 
-- `server.js` — Express API + static frontend. `GET /api/exams?q&org&status&sort`, `GET /api/exams/:id`, `GET /api/sources`, `GET /api/changes`, `POST /api/auth/register|login|admin`, admin `GET /api/review`, `GET /api/jobs`, `POST /api/admin/refresh`.
+- `server.js` — Express API + static frontend. `GET /api/exams?q&org&status&sort` (**public: admin-approved `Verified`/`Updated` only**), `GET /api/exams/:id`, `GET /api/sources`, `GET /api/changes`, `POST /api/auth/register|login|admin`, candidate `GET|POST /api/tracker` (server-owned, forward-only), admin `GET /api/review` (`New` + `Needs Review`), `GET /api/jobs`, `POST /api/admin/exams/:id/approve|reject`, `POST /api/admin/exams/approve-all`, `POST /api/admin/refresh`.
+- **Moderation workflow:** every fresh scrape lands as `New` (invisible publicly). Admin Approves → `Verified` (public) or Rejects → `Rejected` (hidden forever). Ambiguous parses land as `Needs Review`. No API rate limiting — functionality first.
 - `scrape.js` — per-portal fetch + parse (anchor/keyword/date/advt extraction, parent-row enrichment, title dedup).
 - `validate.js` — required fields, `end ≥ start` (bad date dropped → Needs Review), SHA-256 dedup key.
 - `scheduler.js` — 6h cron (`SCRAPE_CRON`), startup run, one retry, job logs; failures never erase trusted data.

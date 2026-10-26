@@ -150,4 +150,35 @@ window.apiGetApplications = async function () {
   document.dispatchEvent(new CustomEvent('data-changed'));
   try { if (typeof render === 'function') render(); } catch (_) { /* pages without render() */ }
   try { if (typeof renderDetails === 'function') renderDetails(); } catch (_) { /* not details page */ }
+  // pull server-owned tracker into local cache when logged in
+  try {
+    if (localStorage.getItem('st_token')) {
+      const tr = await get('/api/tracker').catch(() => null);
+      if (tr && typeof tr === 'object') {
+        setTracker(tr);
+        document.dispatchEvent(new CustomEvent('tracker-changed'));
+        try { if (typeof render === 'function') render(); } catch (_) {}
+        try { if (typeof renderDetails === 'function') renderDetails(); } catch (_) {}
+      }
+    }
+  } catch (_) { /* device-local tracker stays */ }
 })();
+
+// Server-owned tracker helper. save() → {ok} | {error} | null(offline).
+// Server enforces forward-only transitions; Completed never wraps around.
+window.TrackAPI = {
+  async save(examId, status) {
+    const t = localStorage.getItem('st_token');
+    if (!t) return null;
+    try {
+      const r = await fetch('/api/tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+        body: JSON.stringify({ exam_id: examId, status })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return { error: j.error || 'rejected by server' };
+      return { ok: true };
+    } catch (_) { return null; }
+  }
+};
