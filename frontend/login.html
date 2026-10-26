@@ -8,12 +8,34 @@
 <div class="field"><label>Password</label><input id="p" type="password" placeholder="••••••••"></div>
 <button class="btn" style="width:100%;margin-top:8px" onclick="doLogin()">Login as Candidate →</button>
 <div class="row" style="justify-content:space-between;margin-top:12px"><span class="muted">New here? <a href="register.html">Register</a></span><a class="muted" href="admin-login.html">Admin login →</a></div>
-<p class="muted">Demo: any email works. Admins must use the separate admin login.</p>
+<p class="muted">Enter your registered email and password to access MySQL-synced applications.</p>
 </div></div>
 <script src="js/data.js"></script>
-<script>async function doLogin(){const e=document.getElementById('e').value.trim(),p=document.getElementById('p').value;if(!e)return alert('Enter email');
-try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
-if(!r.ok)throw 0;const j=await r.json();localStorage.setItem('st_token',j.token);localStorage.setItem('st_user',j.user.email);localStorage.setItem('st_name',j.user.name);}
-catch(_){localStorage.setItem('st_user',e);}
-localStorage.setItem('st_role','user');localStorage.removeItem('st_admin');location.href='dashboard.html';}</script>
+<script>
+async function doLogin(){
+  const e=document.getElementById('e').value.trim(),p=document.getElementById('p').value;
+  if(!e)return alert('Enter email');
+  if(!p)return alert('Enter password');
+  try{
+    const r=await fetch('/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:e,password:p})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){
+      return alert(j.error || 'Invalid credentials');
+    }
+    localStorage.setItem('st_token',j.token);
+    localStorage.setItem('st_user',j.user.email);
+    localStorage.setItem('st_name',j.user.name);
+    if(j.user.id) localStorage.setItem('st_user_id',j.user.id);
+    localStorage.setItem('st_role','user');
+    localStorage.removeItem('st_admin');
+    location.href='dashboard.html';
+  }catch(err){
+    alert('Login error: ' + (err.message || 'Server unreachable'));
+  }
+}
+</script>
 </body></html>

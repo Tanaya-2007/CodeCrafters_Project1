@@ -12,11 +12,20 @@
 <script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 function render(){const t=getTracker(),p=prefs(),items=[];
-Object.entries(t).forEach(([id,s])=>{const e=EXAMS.find(x=>x.id===id);if(!e)return;const n=daysLeft(e.application_end);
-if(n!==null&&n>=0&&n<=7&&((n<=1&&p.d1)||(n>1&&p.d7)))items.push({ic:"⏰",bg:"#fef3c7",t:`Deadline: ${e.title}`,s:`${fullCountdown(e)} · status ${s} · end ${e.application_end}`,id});
-if(e.updated&&p.upd)items.push({ic:"✦",bg:"#e0e7ff",t:`Official update: ${e.title}`,s:e.history[e.history.length-1].msg+" · check history",id});});
+Object.entries(t).forEach(([id,s])=>{
+  const e=EXAMS.find(x=>String(x.id)===String(id));
+  if(!e)return;
+  const n=daysLeft(e.application_end);
+  if(n!==null&&n>=0&&n<=7&&((n<=1&&p.d1)||(n>1&&p.d7)))items.push({ic:"⏰",bg:"#fef3c7",t:`Deadline: ${e.title}`,s:`${fullCountdown(e)} · status ${s} · end ${e.application_end||"—"}`,id});
+  if(e.updated&&p.upd){
+    const msg = Array.isArray(e.history) && e.history.length ? e.history[e.history.length-1].msg : "official notice updated";
+    items.push({ic:"✦",bg:"#e0e7ff",t:`Official update: ${e.title}`,s:msg+" · check history",id});
+  }
+});
 if(!items.length)list.innerHTML=`<p class="muted">No alerts. Track an exam closing soon, or simulate an official update. Preferences: 7d=${p.d7?"on":"off"}, 1d=${p.d1?"on":"off"}, updates=${p.upd?"on":"off"}.</p>`;
 else list.innerHTML=items.map(a=>`<div class="notif"><div class="nicon" style="background:${a.bg}">${a.ic}</div><div style="flex:1"><b>${a.t}</b><br><span class="muted">${a.s}</span></div><a class="btn sm ghost" href="exam-details.html?id=${a.id}">Open</a></div>`).join("");}
-document.addEventListener("data-changed",render);render();
+document.addEventListener("tracker-changed",render);
+document.addEventListener("data-changed",render);
+render();
 </script>
 </body></html>

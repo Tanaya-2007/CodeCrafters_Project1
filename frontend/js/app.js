@@ -63,7 +63,7 @@
 function goExplore(){ const q=document.getElementById("topq")?.value||""; location.href="explore.html?q="+encodeURIComponent(q); }
 function pendingAlerts(){
   const t=getTracker(),p=prefs(),out=[];
-  Object.entries(t).forEach(([id])=>{ const e=EXAMS.find(x=>x.id===id); if(!e)return;
+  Object.entries(t).forEach(([id])=>{ const e=EXAMS.find(x=>String(x.id)===String(id)); if(!e)return;
     const n=daysLeft(e.application_end);
     if(n!==null&&n>=0&&n<=7&&((n<=1&&p.d1)||(n>1&&p.d7))) out.push(e);
     if(e.updated&&p.upd) out.push(e);
@@ -71,20 +71,37 @@ function pendingAlerts(){
   return [...new Set(out)];
 }
 function toast(msg){ let w=document.getElementById("toasts"); if(!w){w=document.createElement("div");w.id="toasts";document.body.appendChild(w);} const d=document.createElement("div"); d.className="toast"; d.textContent=msg; w.appendChild(d); setTimeout(()=>d.remove(),2800); }
-function logout(){ ["st_user","st_role","st_token","st_admin"].forEach(k=>localStorage.removeItem(k)); location.href="login.html"; }
+function logout(){ ["st_user","st_role","st_token","st_admin","st_user_id","st_name","tracker"].forEach(k=>localStorage.removeItem(k)); location.href="login.html"; }
 function adminLogout(){ ["st_admin","st_role","st_token"].forEach(k=>localStorage.removeItem(k)); location.href="admin-login.html"; }
 function toggleTrack(id){
   const t=getTracker();
-  if(t[id]) delete t[id]; else t[id]="Interested";
-  setTracker(t); toast(t[id]?"Added to tracker":"Removed from tracker");
-  document.dispatchEvent(new CustomEvent("tracker-changed"));
+  const isTracked = !!t[id];
+  if(isTracked){
+    delete t[id];
+    setTracker(t);
+    toast("Removed from tracker");
+    document.dispatchEvent(new CustomEvent("tracker-changed"));
+    if(typeof window.apiUntrackExam === 'function'){
+      window.apiUntrackExam(id).catch(e => console.warn('[tracker untrack]', e.message));
+    }
+  } else {
+    t[id]="Interested";
+    setTracker(t);
+    toast("Added to tracker");
+    document.dispatchEvent(new CustomEvent("tracker-changed"));
+    if(typeof window.apiTrackExam === 'function'){
+      window.apiTrackExam(id, "Interested").catch(e => console.warn('[tracker track]', e.message));
+    }
+  }
 }
 function simulateUpdate(){
-  const e=EXAMS.find(x=>x.id==="rrb-ntpc-2026");
+  const e=EXAMS.find(x=>String(x.id)==="rrb-ntpc-2026" || (x.title && x.title.includes("RRB NTPC"))) || EXAMS[0];
+  if(!e) return;
   if(e.updated){ toast("Already simulated — reload to reset"); return; }
   e.application_end="2026-10-05"; e.status="Updated"; e.updated=true; e.last_checked=new Date().toISOString();
+  if(!Array.isArray(e.history)) e.history = [];
   e.history.push({at:new Date().toISOString().slice(0,10),msg:"Change detected: application_end 2026-09-30 → 2026-10-05 → status Updated"});
   toast("Official update detected: RRB deadline extended");
   document.dispatchEvent(new CustomEvent("data-changed"));
 }
-function avatarColor(org){ let h=0; for(const c of org) h=(h*31+c.charCodeAt(0))%360; return `hsl(${h},28%,22%)`; }
+function avatarColor(org){ let h=0; for(const c of org||"") h=(h*31+c.charCodeAt(0))%360; return `hsl(${h},28%,22%)`; }
