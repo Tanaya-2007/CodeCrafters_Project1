@@ -266,6 +266,94 @@ VALUES
 -- 11. VERIFICATION
 SHOW TABLES;
 
+-- 12. EXAM ROADMAPS (dynamic per exam — admin defines weeks + topics)
+CREATE TABLE roadmaps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL DEFAULT 'Exam Preparation Roadmap',
+    total_weeks INT NOT NULL DEFAULT 8,
+    created_by_admin INT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_roadmaps_exam
+        FOREIGN KEY (exam_id)
+        REFERENCES exams(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    CONSTRAINT fk_roadmaps_admin
+        FOREIGN KEY (created_by_admin)
+        REFERENCES users(id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- 13. ROADMAP WEEKS
+CREATE TABLE roadmap_weeks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    roadmap_id INT NOT NULL,
+    week_number INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    start_date DATE NULL,
+    end_date DATE NULL,
+
+    CONSTRAINT fk_weeks_roadmap
+        FOREIGN KEY (roadmap_id)
+        REFERENCES roadmaps(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    UNIQUE (roadmap_id, week_number)
+);
+
+-- 14. ROADMAP TOPICS / TASKS
+CREATE TABLE roadmap_topics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    week_id INT NOT NULL,
+    topic VARCHAR(300) NOT NULL,
+    resource_type VARCHAR(20) NOT NULL DEFAULT 'book'
+        CHECK (resource_type IN ('book','video','mock','pyq','notes')),
+    resource_link VARCHAR(1000) NULL,
+    order_index INT NOT NULL DEFAULT 0,
+
+    CONSTRAINT fk_topics_week
+        FOREIGN KEY (week_id)
+        REFERENCES roadmap_weeks(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- 15. USER ROADMAP PROGRESS (per-user topic completion)
+CREATE TABLE user_roadmap_progress (
+    user_id INT NOT NULL,
+    topic_id INT NOT NULL,
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+
+    PRIMARY KEY (user_id, topic_id),
+
+    CONSTRAINT fk_progress_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    CONSTRAINT fk_progress_topic
+        FOREIGN KEY (topic_id)
+        REFERENCES roadmap_topics(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_roadmap_weeks_roadmap ON roadmap_weeks(roadmap_id);
+CREATE INDEX idx_roadmap_topics_week ON roadmap_topics(week_id);
+CREATE INDEX idx_user_roadmap_progress_user ON user_roadmap_progress(user_id);
+CREATE INDEX idx_user_roadmap_progress_topic ON user_roadmap_progress(topic_id);
+
+-- 16. PUBLIC EXAMS VIEW
+CREATE OR REPLACE VIEW v_exams_public AS
+SELECT
+    e.*,
+    s.name AS source_name,
+    s.listing_url
+FROM exams e
+JOIN official_sources s ON e.source_id = s.id
+WHERE e.status IN ('Verified', 'Updated');
+
 SELECT
     TABLE_NAME,
     COLUMN_NAME,

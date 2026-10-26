@@ -131,6 +131,45 @@ app.post('/api/admin/refresh', requireAdmin, async (req, res) => {
 });
 
 // ---------- candidate application tracking ----------
+
+// ---------- exam roadmaps (dynamic, per user) ----------
+app.get('/api/roadmaps/:examId', async (req, res, next) => {
+  try {
+    const examId = Number(req.params.examId);
+    const map = await db.getRoadmap(examId);
+    if (!map) return res.status(404).json({ error: 'roadmap not found' });
+    res.json(map);
+  } catch (e) { next(e); }
+});
+
+app.get('/api/roadmaps/:examId/progress', async (req, res, next) => {
+  try {
+    const owner = await db.tokenOwner(req.headers.authorization || '');
+    if (!owner || !owner.userId) return res.status(401).json({ error: 'candidate login required' });
+    const data = await db.getUserRoadmapProgress(owner.userId, Number(req.params.examId));
+    if (!data) return res.status(404).json({ error: 'roadmap not found' });
+    res.json(data);
+  } catch (e) { next(e); }
+});
+
+app.post('/api/roadmaps/:examId/progress', async (req, res, next) => {
+  try {
+    const owner = await db.tokenOwner(req.headers.authorization || '');
+    if (!owner || !owner.userId) return res.status(401).json({ error: 'candidate login required' });
+    const { topicId, completed } = req.body || {};
+    if (!topicId) return res.status(400).json({ error: 'topicId required' });
+    res.json(await db.toggleTopicProgress(owner.userId, Number(topicId), completed === true));
+  } catch (e) { next(e); }
+});
+
+app.post('/api/admin/roadmaps/:examId', requireAdmin, async (req, res, next) => {
+  try {
+    const { title, totalWeeks, weeks, createdByAdmin } = req.body || {};
+    if (!totalWeeks || !weeks) return res.status(400).json({ error: 'totalWeeks and weeks required' });
+    res.json(await db.createRoadmap(Number(req.params.examId), title, Number(totalWeeks), weeks, createdByAdmin));
+  } catch (e) { next(e); }
+});
+
 app.get('/api/applications', async (req, res, next) => {
   try {
     const userId = await resolveCandidate(req);

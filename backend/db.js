@@ -679,6 +679,115 @@ async function getUserByEmail(email) {
   return rows[0] || null;
 }
 
+// ---------- EXAM ROADMAPS ----------
+
+async function getRoadmap(examId) {
+  requireDB();
+
+  const [maps] = await pool.query(
+    'SELECT * FROM roadmaps WHERE exam_id = ? ORDER BY created_at DESC LIMIT 1',
+    [examId]
+  );
+  if (!maps.length) return null;
+
+  const roadmap = maps[0];
+
+  const [weeks] = await pool.query(
+    'SELECT * FROM roadmap_weeks WHERE roadmap_id = ? ORDER BY week_number ASC',
+    [roadmap.id]
+  );
+
+  for (const week of weeks) {
+    const [topics] = await pool.query(
+      'SELECT * FROM roadmap_topics WHERE week_id = ? ORDER BY order_index ASC',
+      [week.id]
+    );
+    week.topics = topics;
+  }
+
+  roadmap.weeks = weeks;
+  return roadmap;
+}
+
+async function toggleTopicProgress(userId, topicId, completed) {
+  requireDB();
+
+  if (completed) {
+    await pool.query(
+      `INSERT INTO user_roadmap_progress (user_id, topic_id, completed, completed_at)
+       VALUES (?, ?, TRUE, NOW())
+       ON DUPLICATE KEY UPDATE
+         completed = TRUE,
+         completed_at = NOW()`,
+      [userId, topicId]
+    );
+  } else {
+    await pool.query(
+      `UPDATE user_roadmap_progress
+       SET completed = FALSE, completed_at = NULL
+       WHERE user_id = ? AND topic_id = ?`,
+      [userId, topicId]
+    );
+  }
+
+  return { userId, topicId, completed };
+}
+
+async function getUserRoadmapProgress(userId, examId) {
+  requireDB();
+
+  const map = await getRoadmap(examId);
+  if (!map) return null;
+
+  const [progress] = await pool.query(
+    `SELECT t.id AS topic_id, p.completed
+     FROM roadmap_topics t
+     JOIN roadmap_weeks w ON t.week_id = w.id
+     LEFT JOIN user_roadmap_progress p
+       ON p.topic_id = t.id AND p.user_id = ?
+     WHERE w.roadmap_id = ?`,
+    [userId, map.id]
+  );
+
+  return {
+    roadmap: map,
+    progress: progress.reduce((acc, row) => {
+      acc[row.topic_id] = row.completed === 1 || row.completed === true;
+      return acc;
+    }, {})
+  };
+}
+
+async function createRoadmap(examId, title, totalWeeks, weeks, createdByAdmin) {
+  requireDB();
+
+  const [result] = await pool.query(
+    `INSERT INTO roadmaps (exam_id, title, total_weeks, created_by_admin)
+     VALUES (?, ?, ?, ?)`,
+    [examId, title, totalWeeks, createdByAdmin || null]
+  );
+  const roadmapId = result.insertId;
+
+  for (const w of weeks) {
+    const [weekResult] = await pool.query(
+      `INSERT INTO roadmap_weeks (roadmap_id, week_number, title, start_date, end_date)
+       VALUES (?, ?, ?, ?, ?)`,
+      [roadmapId, w.week_number, w.title, w.start_date || null, w.end_date || null]
+    );
+    const weekId = weekResult.insertId;
+
+    for (const t of (w.topics || [])) {
+      await pool.query(
+        `INSERT INTO roadmap_topics (week_id, topic, resource_type, resource_link, order_index)
+         VALUES (?, ?, ?, ?, ?)`,
+        [weekId, t.topic, t.resource_type || 'book', t.resource_link || null, t.order_index || 0]
+      );
+    }
+  }
+
+  return { id: roadmapId, examId, title, total_weeks: totalWeeks };
+}
+
 module.exports = {
   init,
   ensureSource,
@@ -699,5 +808,9 @@ module.exports = {
   getUserApplications,
   getUserById,
   getUserByEmail,
-  seedInitialExams
+  seedInitialExams,
+  getRoadmap,
+  toggleTopicProgress,
+  getUserRoadmapProgress,
+  createRoadmap
 };
