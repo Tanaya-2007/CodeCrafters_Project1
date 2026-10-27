@@ -5,6 +5,7 @@ const mysql = require('mysql2/promise');
 
 let pool = null;
 
+
 async function init() {
   pool = mysql.createPool({
     host: process.env.MYSQL_HOST || 'localhost',
@@ -19,9 +20,53 @@ async function init() {
 
   await pool.query('SELECT 1');
   console.log('[db] MySQL connected');
+
+  const initialSources = [
+    {
+      name: 'Union Public Service Commission',
+      base: 'https://upsc.gov.in',
+      listing: 'https://upsc.gov.in/examinations',
+      key: 'upsc'
+    },
+    {
+      name: 'Staff Selection Commission',
+      base: 'https://ssc.gov.in',
+      listing: 'https://ssc.gov.in',
+      key: 'ssc'
+    },
+    {
+      name: 'Railway Recruitment Board',
+      base: 'https://rrbcdg.gov.in',
+      listing: 'https://rrbcdg.gov.in',
+      key: 'rrb'
+    },
+    {
+      name: 'Institute of Banking Personnel Selection',
+      base: 'https://www.ibps.in',
+      listing: 'https://www.ibps.in',
+      key: 'ibps'
+    },
+    {
+      name: 'UP Public Service Commission',
+      base: 'https://uppsc.up.nic.in',
+      listing: 'https://uppsc.up.nic.in',
+      key: 'uppsc'
+    }
+  ];
+
+  for (const source of initialSources) {
+    await ensureSource(source);
+  }
+
+  console.log('[db] Sources ensured');
+
   await seedInitialExams();
+
+  console.log('[db] Initial exam seeding complete');
+
   return { mode: 'mysql' };
 }
+
 
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
