@@ -16,7 +16,10 @@ let eid=null,edata=null,esel="Interested";
 function renderDetails(){
   eid=new URLSearchParams(location.search).get("id")||(EXAMS[0]?EXAMS[0].id:"");
   edata=EXAMS.find(x=>String(x.id)===String(eid))||EXAMS[0];
-  if(!edata) return;
+  if(!edata){
+    d.innerHTML=`<div class="panel" style="text-align:center;padding:40px"><b>🔍 Exam not found</b><p class="muted">This exam may have been removed or is awaiting admin verification.</p><a class="btn" href="explore.html">← Back to exams</a></div>`;
+    return;
+  }
   esel=getTracker()[edata.id]||"Interested";
   const e=edata,t=getTracker();const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
   const hist = Array.isArray(e.history) && e.history.length ? e.history : [{at: (e.last_checked||'').slice(0,10), msg: 'Notice active → status ' + e.status}];
@@ -42,17 +45,6 @@ function matBlock(e){
   <div class="meta"><b>Official:</b> ${f.material.links.map(l=>`<a href="${l.u}" target="_blank">${l.t} ↗</a>`).join(' · ')}</div></div>`;
 }
 opts.onclick=ev=>{const b=ev.target.closest(".chip");if(!b)return;esel=b.dataset.s;[...opts.children].forEach(c=>c.classList.toggle("on",c===b));};
-function saveSt(){
-  const tr=getTracker();
-  tr[edata.id]=esel;
-  setTracker(tr);
-  m.classList.remove("open");
-  toast("Status → "+esel);
-  renderDetails();
-  if(typeof window.apiTrackExam === 'function'){
-    window.apiTrackExam(edata.id, esel).catch(e => console.warn('[tracker saveSt]', e.message));
-  }
-}
 function saveSt(){
   const tr=getTracker();
   tr[edata.id]=esel;

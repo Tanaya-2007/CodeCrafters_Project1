@@ -31,7 +31,7 @@ return `<article class="card"><div class="card-top"><div class="avatar" style="b
 <div class="dates"><div><span>Apply</span><b>${(e.application_start||"?").slice(5)||"?"} → ${(e.application_end||"—").slice(5)||"—"}</b></div><div><span>Exam</span><b>${e.exam_date||"TBD"}</b></div><div><span>Admit card</span><b>${e.admit_card_date||"TBD"}</b></div></div>
 <div class="countline ${urg?"urgent":""}"><span>${fullCountdown(e)}</span><a href="${e.official_url}" target="_blank" style="font-weight:600;font-size:12px">Official ↗</a></div>
 <div class="bar"><i style="width:${urgency(e)}%"></i></div>
-<div class="row" style="margin-top:6px"><a class="btn sm" href="exam-details.html?id=${e.id}">Open details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}');render()">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div>
+<div class="row" style="margin-top:6px"><a class="btn sm" href="exam-details.html?id=${e.id}">Open details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}')">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div>
 <div class="muted" style="margin-top:8px;font-size:11.5px">Last checked ${new Date(e.last_checked||Date.now()).toLocaleString()}</div></article>`;}
 function render(){const t=getTracker();
 const PUB=EXAMS.filter(isPublic);
@@ -43,7 +43,7 @@ const soon=[...EXAMS].filter(e=>daysLeft(e.application_end)!==null&&daysLeft(e.a
 document.getElementById("soon").innerHTML=soon.map(e=>`<div class="notif"><div class="nicon" style="background:#fef3c7">⏰</div><div style="flex:1"><b>${e.title}</b><br><span class="muted">${fullCountdown(e)} · ends ${e.application_end}</span><div class="bar"><i style="width:${urgency(e)}%"></i></div></div><a class="btn sm ghost" href="exam-details.html?id=${e.id}">Open</a></div>`).join("");
 const ids=Object.keys(t);
 document.getElementById("mine").innerHTML=ids.length?ids.slice(0,4).map(id=>{const e=EXAMS.find(x=>String(x.id)===String(id));return e?`<div class="notif"><div class="nicon" style="background:#e4e8ff">📌</div><div><b>${e.title}</b><br><span class="muted">${t[id]} · ${countdownText(e)}</span></div></div>`:"";}).join(""):'<p class="muted">Nothing tracked yet.<br><a href="explore.html">Explore exams →</a></p>';
-document.getElementById("grid").innerHTML=[...EXAMS].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("");}
+document.getElementById("grid").innerHTML=[...PUB].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("")||'<div class="panel">No verified notices yet — fresh items await admin approval.</div>';}
 document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>
 </body></html>

@@ -33,7 +33,7 @@ chips.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;chip=b.dataset.
 function initials(s){return (s||"").split(" ").map(w=>w[0]).slice(0,2).join("");}
 function render(){
   syncOrgs();
-  let l=[...EXAMS];const s=q.value.toLowerCase();
+  let l=[...EXAMS].filter(isPublic);const s=q.value.toLowerCase();
   if(s)l=l.filter(e=>(e.title+e.organization+(e.advt_no||"")).toLowerCase().includes(s));
   if(fOrg.value)l=l.filter(e=>e.organization===fOrg.value);
   if(fStatus.value)l=l.filter(e=>e.status===fStatus.value);
@@ -49,7 +49,7 @@ function render(){
 <div style="font-weight:900;font-size:20px;color:${urg?"var(--bad)":"var(--brand)"}">${!e.application_end?'<span class="muted" style="font-size:14px">—</span>':(n<0?'<span class="badge b-review">Closed</span>':n+"d")}</div></div>
 <h3>${e.title}</h3><div class="muted">${e.advt_no||""} · ${e.vacancies??"?"} posts · Exam ${e.exam_date||"TBD"}</div>
 <div class="countline ${urg?"urgent":""}" style="margin-top:8px"><span>${fullCountdown(e)}</span></div><div class="bar"><i style="width:${urgency(e)}%"></i></div>
-<div class="row"><a class="btn sm" href="exam-details.html?id=${e.id}">Details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}');render()">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div></article>`;}).join("")||`<div class="panel">No matches. Try clearing filters.</div>`;}
+<div class="row"><a class="btn sm" href="exam-details.html?id=${e.id}">Details →</a><button class="btn sm ghost" onclick="toggleTrack('${e.id}')">${t[e.id]?"✓ "+t[e.id]:"+ Track"}</button></div></article>`;}).join("")||`<div class="panel">No matches. Try clearing filters.</div>`;}
 document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>
 </body></html>

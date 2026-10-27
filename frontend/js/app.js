@@ -77,21 +77,24 @@ function toggleTrack(id){
   const t=getTracker();
   const isTracked = !!t[id];
   if(isTracked){
-    delete t[id];
-    setTracker(t);
-    toast("Removed from tracker");
-    document.dispatchEvent(new CustomEvent("tracker-changed"));
-    if(typeof window.apiUntrackExam === 'function'){
-      window.apiUntrackExam(id).catch(e => console.warn('[tracker untrack]', e.message));
+    const cur=t[id];
+    if(cur==="Completed"){
+      toast("Already completed ✓");
+      return;
     }
+    const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
+    const nxt=order[order.indexOf(cur)+1]||cur;
+    t[id]=nxt;
   } else {
     t[id]="Interested";
-    setTracker(t);
-    toast("Added to tracker");
-    document.dispatchEvent(new CustomEvent("tracker-changed"));
-    if(typeof window.apiTrackExam === 'function'){
-      window.apiTrackExam(id, "Interested").catch(e => console.warn('[tracker track]', e.message));
-    }
+  }
+  setTracker(t);
+  const btns=document.querySelectorAll(`button[onclick*="toggleTrack('${id}')"]`);
+  btns.forEach(b=>b.textContent=t[id]?"✓ "+t[id]:"+ Track");
+  toast(isTracked?("Status → "+t[id]):"Added to tracker");
+  document.dispatchEvent(new CustomEvent("tracker-changed"));
+  if(typeof window.apiTrackExam==='function'){
+    window.apiTrackExam(id,t[id]).catch(e=>console.warn('[tracker track]',e.message));
   }
 }
 function simulateUpdate(){
