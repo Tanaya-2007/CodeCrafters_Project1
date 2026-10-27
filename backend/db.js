@@ -14,11 +14,169 @@ async function init() {
     database: process.env.MYSQL_DATABASE || 'competitive_exam_tracker',
     waitForConnections: true,
     connectionLimit: 10,
-    dateStrings: true
+    dateStrings: true,
+    multipleStatements: true
   });
 
   await pool.query('SELECT 1');
   console.log('[db] MySQL connected');
+
+  // Auto-create every table on first start — no manual SQL needed.
+  await pool.query(`
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    alert_pref_days VARCHAR(20) NOT NULL DEFAULT '7,1',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS official_sources (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL UNIQUE,
+    base_url VARCHAR(500) NOT NULL,
+    listing_url VARCHAR(500) NOT NULL,
+    parser_type VARCHAR(50) NOT NULL,
+    check_interval_minutes INT NOT NULL DEFAULT 360,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_checked_at DATETIME,
+    last_status VARCHAR(30) NOT NULL DEFAULT 'New',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_id INT NOT NULL,
+    organization VARCHAR(200) NOT NULL,
+    title VARCHAR(300) NOT NULL,
+    advt_no VARCHAR(100),
+    application_start DATE NULL,
+    application_end DATE NULL,
+    exam_date DATE NULL,
+    admit_card_date DATE NULL,
+    official_url VARCHAR(1000) NOT NULL,
+    syllabus_url VARCHAR(1000) NULL,
+    vacancies INT NULL,
+    qualification TEXT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'New',
+    content_hash CHAR(64) NOT NULL,
+    retrieved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_verified_at DATETIME NULL,
+    is_ambiguous BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (source_id) REFERENCES official_sources(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS exam_updates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
+    change_type VARCHAR(30) NOT NULL,
+    changed_fields JSON NOT NULL,
+    old_snapshot JSON NOT NULL,
+    new_snapshot JSON NOT NULL,
+    detected_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS applications (
+    user_id INT NOT NULL,
+    exam_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'Interested',
+    notes TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, exam_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    exam_id INT NOT NULL,
+    alert_type VARCHAR(30) NOT NULL,
+    fire_at DATE NOT NULL,
+    days_before INT NOT NULL,
+    channel VARCHAR(20) NOT NULL DEFAULT 'in_app',
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS scrape_jobs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_id INT NOT NULL,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at DATETIME NULL,
+    result VARCHAR(30) NOT NULL DEFAULT 'running',
+    items_found INT NOT NULL DEFAULT 0,
+    items_inserted INT NOT NULL DEFAULT 0,
+    items_updated INT NOT NULL DEFAULT 0,
+    items_flagged_review INT NOT NULL DEFAULT 0,
+    error TEXT NULL,
+    FOREIGN KEY (source_id) REFERENCES official_sources(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tokens (
+    token VARCHAR(512) PRIMARY KEY,
+    user_id INT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS roadmaps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL DEFAULT 'Exam Preparation Roadmap',
+    total_weeks INT NOT NULL DEFAULT 8,
+    created_by_admin INT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (created_by_admin) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS roadmap_weeks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    roadmap_id INT NOT NULL,
+    week_number INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    start_date DATE NULL,
+    end_date DATE NULL,
+    FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE (roadmap_id, week_number)
+);
+
+CREATE TABLE IF NOT EXISTS roadmap_topics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    week_id INT NOT NULL,
+    topic VARCHAR(300) NOT NULL,
+    resource_type VARCHAR(20) NOT NULL DEFAULT 'book',
+    resource_link VARCHAR(1000) NULL,
+    order_index INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (week_id) REFERENCES roadmap_weeks(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_roadmap_progress (
+    user_id INT NOT NULL,
+    topic_id INT NOT NULL,
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    PRIMARY KEY (user_id, topic_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES roadmap_topics(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE OR REPLACE VIEW v_exams_public AS
+SELECT e.*, s.name AS source_name, s.listing_url
+FROM exams e JOIN official_sources s ON e.source_id = s.id
+WHERE e.status IN ('Verified', 'Updated');
+  `);
+
+  console.log('[db] All tables ensured');
   await seedInitialExams();
   return { mode: 'mysql' };
 }
