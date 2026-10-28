@@ -28,7 +28,8 @@ function renderDetails(){
 <div class="kpi"><small>📌 My status</small><b>${t[e.id]||"Not tracked"}</b><span class="muted">Tap below to update</span></div>
 <div class="kpi"><small>🔔 My alerts</small><b>7d + 1d</b><span class="muted"><a href="profile.html">Preferences →</a></span></div></div>
 <div class="row"><button class="btn" onclick="openM()">${t[e.id]?"Update status ("+t[e.id]+")":"+ Track this exam"}</button><a class="btn ghost" href="${e.official_url}" target="_blank">Open official ↗</a><button class="btn ghost" onclick="simulateUpdate();location.reload()">⚡ Simulate update</button></div>
-<div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${hist.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div><b>${h.at}</b><br><span class="muted">${h.msg}</span></div></div>`).join("")}</div>`;
+<div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${hist.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div><b>${h.at}</b><br><span class="muted">${h.msg}</span></div></div>`).join("")}</div>
+<div class="panel" id="roadmapPanel" style="margin-top:14px"></div>`;
 }
 function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
 function matBlock(e){
@@ -52,8 +53,68 @@ function saveSt(){
     window.apiTrackExam(edata.id, esel).catch(e => console.warn('[tracker saveSt]', e.message));
   }
 }
+
+async function renderRoadmap(){
+  if(!edata) return;
+  const panel=document.getElementById('roadmapPanel');
+  let map=null, progress={};
+  try{
+    map=await (await fetch('/api/roadmaps/'+edata.id)).json();
+  }catch(_){}
+  let userId=null;
+  try{
+    const owner=await (await fetch('/api/auth/me')).json();
+    userId=owner.user&&owner.user.id;
+  }catch(_){}
+  if(userId){
+    try{
+      const pd=await (await fetch('/api/roadmaps/'+edata.id+'/progress')).json();
+      progress=pd.progress||{};
+    }catch(_){}
+  }
+  if(!map){
+    panel.innerHTML='<div class="panel"><b>🗺️ Roadmap</b><span class="muted">No roadmap created yet for this exam.</span></div>';
+    return;
+  }
+  const total=map.weeks.reduce((s,w)=>s+(w.topics||[]).length,0);
+  const done=Object.values(progress).filter(Boolean).length;
+  const pct=total?Math.round(100*done/total):0;
+  panel.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <b>🗺️ Roadmap — ${map.title}</b>${ringHTML(pct)}
+    </div>
+    <p class="muted">${done}/${total} topics done · <span class="tr">${pct}% complete</span></p>
+    ${map.weeks.map(w=>{
+      const wDone=(w.topics||[]).filter(t=>progress[t.id]).length;
+      const wPct=w.topics.length?Math.round(100*wDone/w.topics.length):0;
+      return `<div style="margin-bottom:10px;border-left:3px solid var(--brand);padding-left:8px">
+        <div style="display:flex;justify-content:space-between"><b>Week ${w.week_number}</b> · ${w.title}</div>
+        <div style="font-size:12px;color:var(--muted);margin:2px 0">${wDone}/${w.topics.length} topics · <span class="tr">${wPct}%</span></div>
+        <div class="bar" style="width:100%"><i style="width:${wPct}%"></i></div>
+        ${(w.topics||[]).map(t=>`
+          <label class="toggle" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin:3px 0">
+            <input type="checkbox" ${progress[t.id]?'checked':''} onchange="toggleTopic(${t.id}, this.checked)" style="width:18px;height:18px;accent-color:#111827">
+            <span>${t.topic}</span>${t.resource_link?' · <a href="'+t.resource_link+'" target="_blank" style="font-size:11px;color:var(--brand)">resource ↗</a>':''}
+          </label>
+        `).join('')}
+      </div>`;
+    }).join('')
+  `;
+}
+async function toggleTopic(topicId, completed){
+  try{
+    await fetch('/api/roadmaps/'+edata.id+'/progress',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topicId:Number(topicId), completed:completed===true})
+    });
+    renderRoadmap();
+  }catch(_){toast('Could not save progress — login required');}
+}
 document.addEventListener("tracker-changed",renderDetails);
 document.addEventListener("data-changed",renderDetails);
+document.addEventListener("roadmap-changed",renderRoadmap);
 renderDetails();
+renderRoadmap();
 </script>
-</body></html>
+</body></html> 
