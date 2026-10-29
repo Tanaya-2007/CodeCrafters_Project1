@@ -18,20 +18,21 @@ function renderDetails(){
   edata=EXAMS.find(x=>String(x.id)===String(eid))||EXAMS[0];
   if(!edata){
     d.innerHTML=`<div class="panel" style="text-align:center;padding:40px"><b>🔍 Exam not found</b><p class="muted">This exam may have been removed or is awaiting admin verification.</p><a class="btn" href="explore.html">← Back to exams</a></div>`;
+    document.getElementById("roadmapPanel").innerHTML="";
     return;
   }
   esel=getTracker()[edata.id]||"Interested";
   const e=edata,t=getTracker();const n=daysLeft(e.application_end);const urg=n!==null&&n>=0&&n<=7;
   const hist = Array.isArray(e.history) && e.history.length ? e.history : [{at: (e.last_checked||'').slice(0,10), msg: 'Notice active → status ' + e.status}];
   d.innerHTML=`<div class="row" style="justify-content:space-between"><span class="org">${e.organization}</span>${e.updated?'<span class="badge b-updated">✦ Official update — field changed</span>':statusBadge(e.status)}</div>
-<h1 style="margin:8px 0;letter-spacing:-.6px;font-size:clamp(22px,3vw,30px)">${e.title}</h1>
+<h1 style="margin:8px 0;letter-spacing:-.6px;font-size:clamp(22px,3vw,30px)">${cleanTitle(e.title)}</h1>
 <div class="muted">${e.advt_no||""} · ${e.vacancies??"?"} posts · <a href="${e.official_url}" target="_blank">Official notice ↗</a> (truth) · Last checked ${new Date(e.last_checked||Date.now()).toLocaleString()}</div>
 <div class="kpis" style="margin-top:14px"><div class="kpi"><small>📝 Application window</small><b style="font-size:18px">${e.application_start||"?"} → ${e.application_end||"awaited"}</b><span class="tr ${urg?"down":"up"}">${fullCountdown(e)}</span><div class="bar"><i style="width:${urgency(e)}%"></i></div></div>
 <div class="kpi"><small>📅 Exam</small><b>${e.exam_date||"TBD"}</b><span class="muted">Admit card: ${e.admit_card_date||"TBD"}</span></div>
 <div class="kpi"><small>📌 My status</small><b>${t[e.id]||"Not tracked"}</b><span class="muted">Tap below to update</span></div></div>
 <div class="row"><button class="btn" onclick="openM()">${t[e.id]?"Update status ("+t[e.id]+")":"+ Track this exam"}</button><a class="btn ghost" href="${e.official_url}" target="_blank">Open official ↗</a></div>
 ${matBlock(e)}
-<div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${hist.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div><b>${h.at}</b><br><span class="muted">${h.msg}</span></div></div>`).join("")}</div>
+<div class="panel" style="background:#f7f8fc;margin-top:14px"><b>📜 Update history (change detection)</b>${hist.map(h=>`<div class="notif"><div class="nicon" style="background:#e4e8ff">◷</div><div style="flex:1"><b>${cleanTitle(e.title)}</b> ${statusBadge(e.status)}<br><span class="muted">${h.at} — ${cleanTitle(h.msg)}</span></div></div>`).join("")}</div>
 <div class="panel" id="roadmapPanel" style="margin-top:14px"></div>`;
 }
 function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on":""}" data-s="${o}">${o}</button>`).join("");m.classList.add("open");}
@@ -39,7 +40,6 @@ function openM(){opts.innerHTML=order.map(o=>`<button class="chip ${o===esel?"on
 function matBlock(e){
   const f=familyForNotice(e);
   const p=getProfile();
-  // Generic material for all exams
   const generic = {
     subjects: ["General Knowledge & Current Affairs", "Quantitative Aptitude", "Reasoning Ability", "English Language"],
     books: ["Lucent's General Knowledge", "R.S. Aggarwal — Quantitative Aptitude", "R.S. Aggarwal — Reasoning", "Wren & Martin — English Grammar"],
@@ -108,7 +108,7 @@ async function renderRoadmap(){
           </label>
         `).join('')}
       </div>`;
-    }).join('')}
+    }).join('')
   `;
 }
 async function toggleTopic(topicId, completed){

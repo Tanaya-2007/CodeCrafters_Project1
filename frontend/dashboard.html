@@ -16,6 +16,7 @@
 <div class="panel"><div class="row" style="justify-content:space-between"><b>🔥 Closing soon — apply first</b><a href="explore.html">View all →</a></div><div id="soon"></div></div>
 <div class="panel"><div class="row" style="justify-content:space-between"><b>📌 My pipeline</b><a href="tracker.html">Tracker →</a></div><div id="mine"></div></div></div>
 <div class="sec-head"><div><h2>Latest verified notices</h2><p>Sorted by deadline · Updated badge = official field changed · Last-checked = scheduler run</p></div><a href="explore.html">Explore all →</a></div>
+<div id="loading" style="text-align:center;padding:40px;color:var(--muted)">Loading live notices…</div>
 <div class="grid" id="grid"></div>
 </main></div></div><div id="toasts"></div>
 <script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
@@ -40,7 +41,11 @@ const soon=[...PUB].filter(e=>daysLeft(e.application_end)!==null&&daysLeft(e.app
 document.getElementById("soon").innerHTML=soon.map(e=>`<div class="notif"><div class="nicon" style="background:#fef3c7">⏰</div><div style="flex:1"><b>${e.title}</b><br><span class="muted">${fullCountdown(e)} · ends ${e.application_end}</span><div class="bar"><i style="width:${urgency(e)}%"></i></div></div><a class="btn sm ghost" href="exam-details.html?id=${e.id}">Open</a></div>`).join("");
 const ids=Object.keys(t);
 document.getElementById("mine").innerHTML=ids.length?ids.slice(0,4).map(id=>{const e=EXAMS.find(x=>String(x.id)===String(id));return e?`<div class="notif"><div class="nicon" style="background:#e4e8ff">📌</div><div><b>${e.title}</b><br><span class="muted">${t[id]} · ${countdownText(e)}</span></div></div>`:"";}).join(""):'<p class="muted">Nothing tracked yet.<br><a href="explore.html">Explore exams →</a></p>';
-document.getElementById("grid").innerHTML=[...PUB].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("")||'<div class="panel">No verified notices yet — fresh items await admin approval.</div>';}
+const loading=document.getElementById("loading");
+const grid=document.getElementById("grid");
+if(EXAMS.length===0 && !window.apiLoaded){loading.style.display="";grid.style.display="none";return;}
+loading.style.display="none";grid.style.display="";
+grid.innerHTML=[...PUB].sort((a,b)=>(a.application_end||"9999").localeCompare(b.application_end||"9999")).slice(0,6).map(card).join("")||'<div class="panel">No verified notices yet — fresh items await admin approval.</div>';}
 document.addEventListener("tracker-changed",render);document.addEventListener("data-changed",render);render();
 </script>
 </body></html>
