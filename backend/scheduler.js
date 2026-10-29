@@ -48,7 +48,7 @@ async function runAll(db, { reason = 'scheduled' } = {}) {
 
 function startCron(db) {
   const cron = require('node-cron');
-  const expr = process.env.SCRAPE_CRON || '0 */6 * * *';
+  const expr = process.env.SCRAPE_CRON || '0 */1 * * *';
   cron.schedule(expr, () => runAll(db).catch(e => console.error('[scheduler]', e.message)));
   console.log('[scheduler] cron: ' + expr);
 }

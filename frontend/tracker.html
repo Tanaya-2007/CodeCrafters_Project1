@@ -5,46 +5,54 @@
 <div class="main"><header class="top" id="top"></header>
 <main class="content">
 <div class="sec-head"><div><h2>My applications 📌</h2><p>Your pipeline · tap status to advance · countdown per exam</p></div><a class="btn sm" href="explore.html">+ Track more</a></div>
-<div class="kpis"><div class="kpi"><small>Tracked</small><b id="a1">–</b></div><div class="kpi"><small>Applied+</small><b id="a2">–</b></div>
-<div class="kpi"><small>Closing ≤ 7d</small><b id="a3">–</b></div><div class="kpi"><small>Admit stage+</small><b id="a4">–</b></div></div>
+<div class="kpis"><div class="kpi"><small>Tracked</small><b id="a1">–</b></div><div class="kpi"><small>Applied+</small><b id="a2">–</b></div><div class="kpi"><small>Closing ≤ 7d</small><b id="a3">–</b></div><div class="kpi"><small>Admit stage+</small><b id="a4">–</b></div></div>
 <div class="tblwrap"><table class="tbl"><thead><tr><th>Exam</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
 </main></div></div><div id="toasts"></div>
 <script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/prep.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
 <script>
 const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
 function render(){
-  const t=getTracker(),ids=Object.keys(t);
+  const t=getTracker();
+  const ids=Object.keys(t);
   a1.textContent=ids.length;
   a2.textContent=ids.filter(k=>t[k]!=="Interested").length;
   a3.textContent=ids.filter(k=>{
     const e=EXAMS.find(x=>String(x.id)===String(k));
-    const n=e&&daysLeft(e.application_end);
+    const n=e?daysLeft(e.application_end):null;
     return n!==null&&n>=0&&n<=7;
   }).length;
   a4.textContent=ids.filter(k=>["Admit Card","Exam Done","Completed"].includes(t[k])).length;
 
   tb.innerHTML=ids.map(k=>{
     const e=EXAMS.find(x=>String(x.id)===String(k));
-    if(!e)return"";
-    const idx=order.indexOf(t[k]);
-    return `<tr><td data-l="Exam"><b>${e.title}</b><br><span class="muted">${e.organization}</span></td>
-<td data-l="Deadline">${e.application_end||"—"}<br><b>${countdownText(e)}</b><div class="bar" style="max-width:150px"><i style="width:${urgency(e)}%"></i></div></td>
-<td data-l="Status"><div class="progress-steps">${order.map((_,i)=>`<i class="${i<=idx?"done":""}"></i>`).join("")}</div><button class="chip on" onclick="adv('${k}')">${t[k]} →</button></td>
-<td data-l="Actions"><a class="btn sm ghost" href="exam-details.html?id=${k}">Open</a> <button class="btn sm ghost" style="margin-left:4px" onclick="rm('${k}')" title="Untrack">✕</button></td></tr>`;
-  }).join("")||`<tr><td colspan="4" style="text-align:center;padding:30px">Nothing tracked yet. <a href="explore.html">Explore exams →</a></td></tr>`;
+    const idx=t[k]?order.indexOf(t[k]):0;
+    const prog=order.map((_,i)=>`<i class="${i<=idx?'done':''}"></i>`).join("");
+    // Show exam even if not in EXAMS list (defensive)
+    const title=e?e.title:"Tracked exam";
+    const org=e?e.organization:"—";
+    const deadline=e?(e.application_end||"—"):"—";
+    const countdown=e?countdownText(e):"—";
+    const urgencyPct=e?urgency(e):0;
+    return `<tr><td data-l="Exam"><b>${title}</b><br><span class="muted">${org}</span></td>
+    <td data-l="Deadline">${deadline}<br><b>${countdown}</b><div class="bar" style="max-width:150px"><i style="width:${urgencyPct}%"></i></div></td>
+    <td data-l="Status"><div class="progress-steps">${prog}</div><button class="chip on" onclick="adv('${k}')">${t[k]} →</button></td>
+    <td data-l="Actions"><a class="btn sm ghost" href="exam-details.html?id=${k}">Open</a> <button class="btn sm ghost" style="margin-left:4px" onclick="rm('${k}')" title="Untrack">✕</button></td></tr>`;
+  }).join("")||`<tr><td colspan="4" style="text-align:center;padding:30px">Nothing tracked yet.<br><a href="explore.html">Explore exams →</a></td></tr>`;
 }
-
 function adv(k){
   const t=getTracker();
-  t[k]=order[(order.indexOf(t[k])+1)%order.length];
+  const cur=t[k];
+  if(cur==="Completed"){toast("Already completed ✓");return;}
+  const order=["Interested","Applied","Admit Card","Exam Done","Completed"];
+  const nxt=order[order.indexOf(cur)+1]||cur;
+  t[k]=nxt;
   setTracker(t);
-  toast("Status → "+t[k]);
+  toast("Status → "+nxt);
   render();
   if(typeof window.apiTrackExam === 'function'){
     window.apiTrackExam(k, t[k]).catch(e => console.warn('[tracker adv]', e.message));
   }
 }
-
 function rm(k){
   const t=getTracker();
   delete t[k];
@@ -55,7 +63,6 @@ function rm(k){
     window.apiUntrackExam(k).catch(e => console.warn('[tracker rm]', e.message));
   }
 }
-
 document.addEventListener("tracker-changed",render);
 document.addEventListener("data-changed",render);
 render();

@@ -1,31 +1,12 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Notifications — SarkariTrack</title><link rel="stylesheet" href="css/style.css">
-<style>@media(max-width:560px){.notif{flex-wrap:wrap}.notif .btn{flex:1 1 100%;text-align:center;margin-top:6px}}</style></head>
+<title>Notifications — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
 <body data-page="notifications">
 <div class="app"><aside class="side" id="side"></aside>
 <div class="main"><header class="top" id="top"></header>
 <main class="content">
-<div class="row" style="justify-content:space-between"><div><h1 style="margin:0">Notifications 🔔</h1><p class="muted">One alert mechanism (in-app MVP). Idempotent: same deadline never alerts twice. <a href="profile.html">Edit preferences →</a></p></div>
-<button class="btn ghost sm" onclick="simulateUpdate();render()">⚡ Simulate update → new alert</button></div>
-<div class="panel" id="list"></div>
+<div class="panel" style="text-align:center;padding:40px"><b style="font-size:24px">🔔</b>
+<h2 style="margin:12px 0 8px">Notifications</h2>
+<p class="muted">Alert system is not yet connected. Track your exams in <a href="tracker.html">My Tracker</a> and we'll remind you when deadlines approach.</p></div>
 </main></div></div><div id="toasts"></div>
 <script src="js/data.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
-<script>
-function render(){const t=getTracker(),p=prefs(),items=[];
-Object.entries(t).forEach(([id,s])=>{
-  const e=EXAMS.find(x=>String(x.id)===String(id));
-  if(!e)return;
-  const n=daysLeft(e.application_end);
-  if(n!==null&&n>=0&&n<=7&&((n<=1&&p.d1)||(n>1&&p.d7)))items.push({ic:"⏰",bg:"#fef3c7",t:`Deadline: ${e.title}`,s:`${fullCountdown(e)} · status ${s} · end ${e.application_end||"—"}`,id});
-  if(e.updated&&p.upd){
-    const msg = Array.isArray(e.history) && e.history.length ? e.history[e.history.length-1].msg : "official notice updated";
-    items.push({ic:"✦",bg:"#e0e7ff",t:`Official update: ${e.title}`,s:msg+" · check history",id});
-  }
-});
-if(!items.length)list.innerHTML=`<p class="muted">No alerts. Track an exam closing soon, or simulate an official update. Preferences: 7d=${p.d7?"on":"off"}, 1d=${p.d1?"on":"off"}, updates=${p.upd?"on":"off"}.</p>`;
-else list.innerHTML=items.map(a=>`<div class="notif"><div class="nicon" style="background:${a.bg}">${a.ic}</div><div style="flex:1"><b>${a.t}</b><br><span class="muted">${a.s}</span></div><a class="btn sm ghost" href="exam-details.html?id=${a.id}">Open</a></div>`).join("");}
-document.addEventListener("tracker-changed",render);
-document.addEventListener("data-changed",render);
-render();
-</script>
 </body></html>
