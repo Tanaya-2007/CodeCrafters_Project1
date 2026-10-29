@@ -23,7 +23,7 @@ function render(){
     return;
   }
   list.innerHTML=rows.map(r=>`<div class="notif"><div class="nicon" style="background:${r.e.updated?"#fef3c7":"#e0e7ff"}">${r.e.updated?"✦":"●"}</div>
-  <div style="flex:1"><b>${r.e.title}</b> ${statusBadge(r.e.status)}<br><span class="muted">${r.h.at} — ${r.h.msg}</span></div></div>`).join("");
+  <div style="flex:1"><b>${cleanTitle(r.e.title)}</b> ${statusBadge(r.e.status)}<br><span class="muted">${r.h.at} — ${r.h.msg}</span></div></div>`).join("");
 }
 document.addEventListener("data-changed",render);
 render();

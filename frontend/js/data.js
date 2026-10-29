@@ -30,3 +30,12 @@ function currentUser(){return localStorage.getItem("st_user")||null;}
 function currentRole(){return localStorage.getItem("st_role")||null;}
 function prefs(){try{return JSON.parse(localStorage.getItem("prefs")||'{"d7":true,"d1":true,"upd":true,"email":false}');}catch{return{d7:true,d1:true,upd:true,email:false};}}
 function savePrefs(p){localStorage.setItem("prefs",JSON.stringify(p));}
+// Clean garbage from live portal scrapes (AngularJS template syntax, etc.)
+function cleanTitle(t){
+  if(!t) return t;
+  return String(t)
+    .replace(/{{\s*['"][^'"]*['"]\s*\|\s*translate\s*}}/g, '')      // {{'...' | translate }}
+    .replace(/{{\s*[^}]*\s*}}/g, '')                                 // {{ any expression }}
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/\s+/g,' ').trim();
+}

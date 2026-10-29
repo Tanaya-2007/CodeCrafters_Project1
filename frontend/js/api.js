@@ -124,7 +124,11 @@ window.apiGetApplications = async function () {
 
   if (Array.isArray(exams) && exams.length) {
     EXAMS.length = 0;
-    exams.forEach(e => EXAMS.push(e));
+    exams.forEach(e => {
+      e.title = cleanTitle(e.title);
+      e.organization = cleanTitle(e.organization);
+      EXAMS.push(e);
+    });
   }
   if (Array.isArray(sources) && sources.length) {
     SOURCES.length = 0;
