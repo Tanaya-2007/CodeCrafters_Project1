@@ -81,9 +81,14 @@ window.apiGetApplications = async function () {
     top.prepend(s);
   }
   let exams = null, sources = null, jobs = null, changes = null, applications = null;
+
+  // 1) Use server-injected data if present (no blank flash)
+  if (window.__EXAMS__ && Array.isArray(window.__EXAMS__)) {
+    exams = window.__EXAMS__;
+  }
+
   try {
     const fetches = [
-      get('/api/exams'),
       get('/api/sources'),
       get('/api/jobs').catch(() => null),
       get('/api/changes').catch(() => null)
@@ -92,10 +97,9 @@ window.apiGetApplications = async function () {
       fetches.push(get('/api/applications' + (userId() ? '?userId=' + userId() : '')).catch(() => null));
     }
     const results = await Promise.all(fetches);
-    exams = results[0];
-    sources = results[1];
-    jobs = results[2];
-    changes = results[3];
+    sources = results[0];
+    jobs = results[1];
+    changes = results[2];
     if (results.length > 4) applications = results[4];
   } catch (e) {
     pill(false);

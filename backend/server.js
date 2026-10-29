@@ -232,8 +232,42 @@ app.post('/api/applications/delete', async (req, res, next) => {
 
 // ---------- frontend ----------
 const FE = path.join(__dirname, '..', 'frontend');
+const fs = require('fs');
+
+// Server-side render: fetch exams first, inject into HTML so no blank flash
+async function renderPageWithExams(res, fileName) {
+  let exams = [];
+  try {
+    exams = await db.listExams({ publicOnly: true });
+  } catch (_) { /* db may not be ready yet */ }
+
+  const html = fs.readFileSync(path.join(FE, fileName), 'utf8');
+  const injected = html.replace(
+    '</body>',
+    `<script>window.__EXAMS__ = ${JSON.stringify(exams)};</script></body>`
+  );
+  res.send(injected);
+}
+
 app.use(express.static(FE));
-app.get('/', (req, res) => res.sendFile(path.join(FE, 'index.html')));
+app.get('/', (req, res) => renderPageWithExams(res, 'index.html'));
+app.get('/dashboard.html', (req, res) => renderPageWithExams(res, 'dashboard.html'));
+app.get('/explore.html', (req, res) => renderPageWithExams(res, 'explore.html'));
+app.get('/exam-details.html', (req, res) => renderPageWithExams(res, 'exam-details.html'));
+app.get('/tracker.html', (req, res) => renderPageWithExams(res, 'tracker.html'));
+app.get('/history.html', (req, res) => renderPageWithExams(res, 'history.html'));
+app.get('/notifications.html', (req, res) => renderPageWithExams(res, 'notifications.html'));
+app.get('/profile.html', (req, res) => renderPageWithExams(res, 'profile.html'));
+app.get('/foryou.html', (req, res) => renderPageWithExams(res, 'foryou.html'));
+app.get('/compare.html', (req, res) => res.sendFile(path.join(FE, 'compare.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(FE, 'admin.html')));
+app.get('/admin-sources.html', (req, res) => res.sendFile(path.join(FE, 'admin-sources.html')));
+app.get('/admin-review.html', (req, res) => res.sendFile(path.join(FE, 'admin-review.html')));
+app.get('/admin-changes.html', (req, res) => res.sendFile(path.join(FE, 'admin-changes.html')));
+app.get('/admin-jobs.html', (req, res) => res.sendFile(path.join(FE, 'admin-jobs.html')));
+app.get('/admin-login.html', (req, res) => res.sendFile(path.join(FE, 'admin-login.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(FE, 'login.html')));
+app.get('/register.html', (req, res) => res.sendFile(path.join(FE, 'register.html')));
 
 // ---------- errors ----------
 app.use('/api', (req, res) => res.status(404).json({ error: 'unknown endpoint' }));
