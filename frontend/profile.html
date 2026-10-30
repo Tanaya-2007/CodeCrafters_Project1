@@ -13,8 +13,8 @@
 <div class="field" style="flex:1;min-width:140px"><label>Status</label><select id="pStatus"><option value="studying">Still studying</option><option value="completed">Completed</option></select></div></div>
 <div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>State</label><select id="pState"><option value="">Select…</option></select></div>
 <div class="field" style="flex:1;min-width:100px"><label>Age (optional)</label><input id="pAge" inputmode="numeric" placeholder="e.g. 21"></div></div>
-<div class="field"><label>Areas of interest (tap all that apply)</label><div class="chiprow" id="pInt"></div></div>
-<button class="btn sm" onclick="saveBg()">Save & see my exams →</button></div>
+<div class="field"><label>Areas of interest (tap all that apply) <span style="color:var(--bad)">*</span></label><div class="chiprow" id="pInt"></div><div class="muted" style="color:var(--bad);font-size:12px;margin-top:6px" id="intErr">Select at least one area of interest.</div></div>
+<button class="btn sm" id="saveBgBtn" onclick="saveBg()" disabled>Save & see my exams →</button></div>
 <div class="panel"><b>🔔 Notification preferences</b><p class="muted">Backend cron reads these before sending idempotent alerts.</p>
 <div class="toggle"><span>⏰ 7 days before deadline</span><div class="switch" id="s7" onclick="flip('d7')"></div></div>
 <div class="toggle"><span>⏰ 1 day before deadline</span><div class="switch" id="s1" onclick="flip('d1')"></div></div>
@@ -33,8 +33,9 @@ STREAMS.forEach(s=>{const o=document.createElement("option");o.textContent=s;pSt
 STATES.forEach(s=>{const o=document.createElement("option");o.textContent=s;pState.appendChild(o);});
 let selInt=new Set();
 pInt.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
-function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}}
-(function(){const p=getProfile();if(!p)return;pQual.value=p.qual||"";pStream.value=p.stream||"";pState.value=p.state||"";pStatus.value=p.status||"studying";pAge.value=p.age||"";selInt=new Set(p.interests||[]);[...pInt.children].forEach(c=>c.classList.toggle("on",selInt.has(c.textContent.trim())));})();
-function saveBg(){if(!pQual.value)return alert("Pick your highest qualification");saveProfile({qual:pQual.value,stream:pStream.value,state:pState.value,status:pStatus.value,age:pAge.value.trim(),interests:[...selInt]});toast("Background saved ✓");location.href="foryou.html";}
+function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}updateSaveBtn();}
+function updateSaveBtn(){const ok=selInt.size>0 && pQual.value!=="";saveBgBtn.disabled=!ok;saveBgBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
+(function(){const p=getProfile();if(!p)return;pQual.value=p.qual||"";pStream.value=p.stream||"";pState.value=p.state||"";pStatus.value=p.status||"studying";pAge.value=p.age||"";selInt=new Set(p.interests||[]);[...pInt.children].forEach(c=>c.classList.toggle("on",selInt.has(c.textContent.trim())));updateSaveBtn();})();
+function saveBg(){if(!pQual.value)return alert("Pick your highest qualification");if(selInt.size===0)return alert("Select at least one area of interest.");saveProfile({qual:pQual.value,stream:pStream.value,state:pState.value,status:pStatus.value,age:pAge.value.trim(),interests:[...selInt]});toast("Background saved ✓");location.href="foryou.html";}
 </script>
 </body></html>

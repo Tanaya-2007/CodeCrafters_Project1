@@ -100,7 +100,11 @@ function qualLevel(id) { const q = QUALS.find(x => x.id === id); return q ? q.le
 function recommend(p) {
   if (!p || !p.qual) return null;
   const lv = qualLevel(p.qual);
-  const out = FAMILIES.map(f => {
+  const interests = p.interests || [];
+  // Filter families by user interests — only show exams matching at least one interest
+  const filtered = FAMILIES.filter(f => interests.some(i => (f.interest || []).includes(i)));
+  if (filtered.length === 0) return [];
+  const out = filtered.map(f => {
     let verdict = 'later', why = '';
     const streamOk = f.streams === 'any' || !p.stream || f.streams === 'any';
     if (lv >= f.minQ) {
@@ -114,7 +118,7 @@ function recommend(p) {
       why = 'Needs ' + (need ? need.label : 'higher qualification') + ' first — start the foundation now.';
     }
     if (f.streams !== 'any' && p.stream) why += ' Note: ' + f.streams + '.';
-    const like = (p.interests || []).some(i => (f.interest || []).includes(i));
+    const like = interests.some(i => (f.interest || []).includes(i));
     return { f, verdict, why, like };
   });
   out.sort((a, b) => (b.like - a.like) || ({ eligible: 0, preparing: 1, later: 2 }[a.verdict] - { eligible: 0, preparing: 1, later: 2 }[b.verdict]));

@@ -8,23 +8,23 @@
 <div class="field"><label>Email</label><input id="e" placeholder="you@example.com"></div>
 <div class="field"><label>Password</label><input id="p" type="password" placeholder="Min 6 characters"></div>
 <div class="field"><label>Alert me</label><div class="row"><label class="chip on" data-pref="d7" onclick="togglePref(this,'d7')">7 days before</label><label class="chip" data-pref="d1" onclick="togglePref(this,'d1')">1 day before</label></div></div>
-<div class="field"><label>Your areas of interest (pick any)</label><div class="chiprow" id="intChips"></div></div>
-<button class="btn" style="width:100%" onclick="doReg()">Create account →</button>
+<div class="field"><label>Areas of interest (tap all that apply) <span style="color:var(--bad)">*</span></label><div class="chiprow" id="intChips"></div><div class="muted" style="color:var(--bad);font-size:12px;margin-top:6px" id="intErr">Select at least one area of interest.</div></div>
+<button class="btn" style="width:100%" id="doRegBtn" onclick="doReg()" disabled>Create account →</button>
 <p class="muted">Have an account? <a href="login.html">Candidate login</a> · <a href="admin-login.html">Admin login</a></p>
 </div></div>
-<script src="js/data.js"></script>
 <script>
 const INTERESTS=["Civil Services (UPSC)","SSC Exams","Banking (IBPS/SBI)","Railways (RRB)","State PSC","Teaching","Defence","Postal"];
 let selInt=new Set();
 function togglePref(el,k){const p=prefs();p[k]=!p[k];savePrefs(p);el.classList.toggle("on");}
-function initInt(){document.getElementById('intChips').innerHTML=INTERESTS.map(i=>`<label class="chip" onclick="toggleInt(this,'${i}')">${i}</label>`).join("");}
-function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}}
+function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}updateRegBtn();}
+function updateRegBtn(){const ok=selInt.size>0;doRegBtn.disabled=!ok;doRegBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
+intChips.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i}')">${i}</button>`).join("");
 async function doReg(){
   const e=document.getElementById('e').value.trim(),n=document.getElementById('n').value.trim(),p=document.getElementById('p').value;
   if(!e||!n)return alert('Enter name + email');
   if(!p||p.length<6)return alert('Password must be at least 6 characters');
-  try{
-    const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
+  if(selInt.size===0)return alert('Select at least one area of interest.');
+  try{const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok){return alert(j.error || 'Registration failed');}
     localStorage.setItem('st_token',j.token);
@@ -36,6 +36,5 @@ async function doReg(){
     localStorage.removeItem('st_admin');
     location.href='dashboard.html';
   }catch(err){alert('Registration error: '+(err.message||'Server unreachable'));}}
-initInt();
 </script>
 </body></html>

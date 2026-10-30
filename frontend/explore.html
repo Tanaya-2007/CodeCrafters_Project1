@@ -34,7 +34,16 @@ function initials(s){return (s||"").split(" ").map(w=>w[0]).slice(0,2).join("");
 function render(){
   syncOrgs();
   const t=getTracker();
+  const p=getProfile();
   let l=[...EXAMS].filter(isPublic).filter(e=>!t[e.id]); // Exclude tracked exams from explore
+  // Filter by user interests if profile is set
+  if(p && p.interests && p.interests.length>0){
+    l=l.filter(e=>{
+      const f=familyForNotice(e);
+      if(!f) return false; // No family match = not relevant
+      return interests.some(i => (f.interest || []).includes(i));
+    });
+  }
   const s=q.value.toLowerCase();
   if(s)l=l.filter(e=>(e.title+e.organization+(e.advt_no||"")).toLowerCase().includes(s));
   if(fOrg.value)l=l.filter(e=>e.organization===fOrg.value);
