@@ -32,10 +32,10 @@ QUALS.forEach(q=>{const o=document.createElement("option");o.value=q.id;o.textCo
 STREAMS.forEach(s=>{const o=document.createElement("option");o.textContent=s;pStream.appendChild(o);});
 STATES.forEach(s=>{const o=document.createElement("option");o.textContent=s;pState.appendChild(o);});
 let selInt=new Set();
-pInt.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
+pInt.innerHTML=INTERESTS.map(i=>`<button class="chip" data-i="${i.id}" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
 function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}updateSaveBtn();}
 function updateSaveBtn(){const ok=selInt.size>0 && pQual.value!=="";saveBgBtn.disabled=!ok;saveBgBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
-(function(){const p=getProfile();if(!p)return;pQual.value=p.qual||"";pStream.value=p.stream||"";pState.value=p.state||"";pStatus.value=p.status||"studying";pAge.value=p.age||"";selInt=new Set(p.interests||[]);[...pInt.children].forEach(c=>c.classList.toggle("on",selInt.has(c.textContent.trim())));updateSaveBtn();})();
+(function(){const p=getProfile();if(!p)return;pQual.value=p.qual||"";pStream.value=p.stream||"";pState.value=p.state||"";pStatus.value=p.status||"studying";pAge.value=p.age||"";selInt=new Set(p.interests||[]);[...pInt.children].forEach(c=>c.classList.toggle("on",selInt.has(c.dataset.i)));updateSaveBtn();})();
 function saveBg(){if(!pQual.value)return alert("Pick your highest qualification");if(selInt.size===0)return alert("Select at least one area of interest.");saveProfile({qual:pQual.value,stream:pStream.value,state:pState.value,status:pStatus.value,age:pAge.value.trim(),interests:[...selInt]});toast("Background saved ✓");location.href="foryou.html";}
 </script>
 </body></html>

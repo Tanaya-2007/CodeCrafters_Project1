@@ -12,13 +12,13 @@
 <button class="btn" style="width:100%" id="doRegBtn" onclick="doReg()" disabled>Create account →</button>
 <p class="muted">Have an account? <a href="login.html">Candidate login</a> · <a href="admin-login.html">Admin login</a></p>
 </div></div>
+<script src="js/recommend.js"></script>
 <script>
-const INTERESTS=["Civil Services (UPSC)","SSC Exams","Banking (IBPS/SBI)","Railways (RRB)","State PSC","Teaching","Defence","Postal"];
+// Use same INTERESTS objects as recommend.js so IDs match
 let selInt=new Set();
-function togglePref(el,k){const p=prefs();p[k]=!p[k];savePrefs(p);el.classList.toggle("on");}
 function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}updateRegBtn();}
 function updateRegBtn(){const ok=selInt.size>0;doRegBtn.disabled=!ok;doRegBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
-intChips.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i}')">${i}</button>`).join("");
+intChips.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
 async function doReg(){
   const e=document.getElementById('e').value.trim(),n=document.getElementById('n').value.trim(),p=document.getElementById('p').value;
   if(!e||!n)return alert('Enter name + email');
