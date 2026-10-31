@@ -4,9 +4,14 @@
 <div class="center"><div class="authcard">
 <div class="brand"><span class="mark">S</span><div>SarkariTrack<small>CANDIDATE SPACE</small></div></div>
 <h1>Create account</h1><p class="muted">Track applications, countdowns & alerts.</p>
-<div class="field"><label>Full name</label><input id="n" placeholder="Aarav Sharma"></div>
-<div class="field"><label>Email</label><input id="e" placeholder="you@example.com"></div>
-<div class="field"><label>Password</label><input id="p" type="password" placeholder="Min 6 characters"></div>
+<div class="field"><label>Full name <span style="color:var(--bad)">*</span></label><input id="n" placeholder="Aarav Sharma" required></div>
+<div class="field"><label>Email <span style="color:var(--bad)">*</span></label><input id="e" placeholder="you@example.com" required></div>
+<div class="field"><label>Password <span style="color:var(--bad)">*</span></label><input id="p" type="password" placeholder="Min 6 characters" required></div>
+<div class="field"><label>Highest qualification <span style="color:var(--bad)">*</span></label><select id="pQual" required><option value="">Select…</option></select></div>
+<div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>Stream / branch <span style="color:var(--bad)">*</span></label><select id="pStream" required><option value="">Select…</option></select></div>
+<div class="field" style="flex:1;min-width:140px"><label>Status <span style="color:var(--bad)">*</span></label><select id="pStatus" required><option value="">Select…</option><option value="studying">Still studying</option><option value="completed">Completed</option></select></div></div>
+<div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>State <span style="color:var(--bad)">*</span></label><select id="pState" required><option value="">Select…</option></select></div>
+<div class="field" style="flex:1;min-width:100px"><label>Age <span style="color:var(--bad)">*</span></label><input id="pAge" inputmode="numeric" placeholder="e.g. 21" required></div></div>
 <div class="field"><label>Alert me</label><div class="row"><label class="chip on" data-pref="d7" onclick="togglePref(this,'d7')">7 days before</label><label class="chip" data-pref="d1" onclick="togglePref(this,'d1')">1 day before</label></div></div>
 <div class="field"><label>Areas of interest (tap all that apply) <span style="color:var(--bad)">*</span></label><div class="chiprow" id="intChips"></div><div class="muted" style="color:var(--bad);font-size:12px;margin-top:6px" id="intErr">Select at least one area of interest.</div></div>
 <button class="btn" style="width:100%" id="doRegBtn" onclick="doReg()" disabled>Create account →</button>
@@ -20,11 +25,24 @@ function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove(
 function updateRegBtn(){const ok=selInt.size>0;doRegBtn.disabled=!ok;doRegBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
 intChips.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
 async function doReg(){
-  const e=document.getElementById('e').value.trim(),n=document.getElementById('n').value.trim(),p=document.getElementById('p').value;
+  const n=document.getElementById('n').value.trim();
+  const e=document.getElementById('e').value.trim();
+  const p=document.getElementById('p').value.trim();
+  const qual=document.getElementById('pQual').value;
+  const stream=document.getElementById('pStream').value;
+  const status=document.getElementById('pStatus').value;
+  const state=document.getElementById('pState').value;
+  const age=document.getElementById('pAge').value.trim();
   if(!e||!n)return alert('Enter name + email');
   if(!p||p.length<6)return alert('Password must be at least 6 characters');
+  if(!qual)return alert('Select your highest qualification');
+  if(!stream)return alert('Select your stream / branch');
+  if(!status)return alert('Select your status');
+  if(!state)return alert('Select your state');
+  if(!age)return alert('Enter your age');
   if(selInt.size===0)return alert('Select at least one area of interest.');
-  try{const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
+  try{
+    const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok){return alert(j.error || 'Registration failed');}
     localStorage.setItem('st_token',j.token);
@@ -33,6 +51,7 @@ async function doReg(){
     if(j.user.id) localStorage.setItem('st_user_id',j.user.id);
     localStorage.setItem('st_role','user');
     localStorage.setItem('st_interests',JSON.stringify([...selInt]));
+    localStorage.setItem('st_profile',JSON.stringify({qual,stream,state,status,age,interests:[...selInt]}));
     localStorage.removeItem('st_admin');
     location.href='dashboard.html';
   }catch(err){alert('Registration error: '+(err.message||'Server unreachable'));}}

@@ -12,7 +12,7 @@
 <div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>Stream / branch</label><select id="pStream"><option value="">Select…</option></select></div>
 <div class="field" style="flex:1;min-width:140px"><label>Status</label><select id="pStatus"><option value="studying">Still studying</option><option value="completed">Completed</option></select></div></div>
 <div class="row" style="gap:10px"><div class="field" style="flex:1;min-width:140px"><label>State</label><select id="pState"><option value="">Select…</option></select></div>
-<div class="field" style="flex:1;min-width:100px"><label>Age (optional)</label><input id="pAge" inputmode="numeric" placeholder="e.g. 21"></div></div>
+<div class="field" style="flex:1;min-width:100px"><label>Age <span style="color:var(--bad)">*</span></label><input id="pAge" inputmode="numeric" placeholder="e.g. 21" required></div></div>
 <div class="field"><label>Areas of interest (tap all that apply) <span style="color:var(--bad)">*</span></label><div class="chiprow" id="pInt"></div><div class="muted" style="color:var(--bad);font-size:12px;margin-top:6px" id="intErr">Select at least one area of interest.</div></div>
 <button class="btn sm" id="saveBgBtn" onclick="saveBg()" disabled>Save & see my exams →</button></div>
 <div class="panel"><b>🔔 Notification preferences</b><p class="muted">Backend cron reads these before sending idempotent alerts.</p>
