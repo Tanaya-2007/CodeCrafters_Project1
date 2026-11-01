@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Study Material — SarkariTrack</title><link rel="stylesheet" href="css/style.css"></head>
+<body data-page="explore">
+<div class="app"><aside class="side" id="side"></aside>
+<div class="main"><header class="top" id="top"></header>
+<main class="content"><a href="exam-details.html" style="margin-bottom:20px;display:inline-block">← Back to Exam</a>
+<div class="panel" id="mat"></div></main>
+</div></div><div id="toasts"></div>
+<script src="js/data.js"></script><script src="js/recommend.js"></script><script src="js/app.js"></script><script src="js/api.js"></script>
+<script>
+function renderMat(){
+  const params=new URLSearchParams(location.search);
+  const fid=params.get('fam')||'';
+  const examId=params.get('id')||'';
+  const fam=FAMILIES.find(f=>f.id===fid);
+  const panel=document.getElementById('mat');
+  if(!fam){
+    panel.innerHTML=`<div class="panel" style="text-align:center;padding:40px"><b>📚 Study Material Not Found</b><p class="muted">Study material for this exam family is not available yet.</p><a class="btn" href="exam-details.html?id=${examId}">← Back to Exam</a></div>`;
+    return;
+  }
+  document.title=`Study Material — ${fam.name} — SarkariTrack`;
+  panel.innerHTML=`
+    <div style="margin-bottom:20px">
+      <h1 style="margin:0 0 4px 0">📚 ${fam.name} — Complete Study Material</h1>
+      <p class="muted">${fam.blurb}</p>
+      ${fam.age?'<div class="meta">Age limit: '+fam.age+'</div>':''}
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px">
+      <div class="panel" style="background:#f7f8fc">
+        <b style="font-size:15px">📚 Subjects to Cover</b>
+        <div class="meta" style="margin-top:8px">${fam.material.subjects.map(s=>`<span class="badge b-new">${s}</span>`).join(' ')}</div>
+      </div>
+      <div class="panel" style="background:#fff7ed">
+        <b style="font-size:15px">📖 Recommended Books</b>
+        <ul class="meta" style="margin-top:8px;padding-left:18px">${fam.material.books.map(b=>`<li>${b}</li>`).join('')}</ul>
+      </div>
+      <div class="panel" style="background:#fff1f2">
+        <b style="font-size:15px">🎥 YouTube Video Courses</b>
+        <ul class="meta" style="margin-top:8px;padding-left:18px">${fam.material.videos.map(v=>`<li><a href="${v.u}" target="_blank">${v.t}</a></li>`).join('')}</ul>
+      </div>
+      <div class="panel" style="background:#f3f4f6">
+        <b style="font-size:15px">📝 Previous Year Question Papers</b>
+        <ul class="meta" style="margin-top:8px;padding-left:18px">${fam.material.pyq.map(p=>`<li><a href="${p.u}" target="_blank">${p.t}</a></li>`).join('')}</ul>
+      </div>
+      <div class="panel" style="background:#f0fdf4">
+        <b style="font-size:15px">🌐 Official Websites &amp; Portals</b>
+        <ul class="meta" style="margin-top:8px;padding-left:18px">${fam.material.links.map(l=>`<li><a href="${l.u}" target="_blank">${l.t}</a></li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="row" style="margin-top:24px"><a class="btn" href="exam-details.html?id=${examId}">← Back to Exam Details</a></div>
+  `;
+}
+document.addEventListener('data-changed',render);render();
+</script>
+</body></html>

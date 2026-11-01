@@ -1,7 +1,20 @@
 // Shared mock data (backend API will replace). Keep in sync with database/schema.sql
 // EXAMS starts EMPTY so no stale/mock data is ever shown before live API loads.
 const EXAMS = [];
-const SOURCES = [];
+const SOURCES = [
+  {name:"Union Public Service Commission",url:"https://upsc.gov.in",parser:"upsc_html",interval:60,status:"Source Unavailable",last:"2026-10-28 07:30",items:0},
+  {name:"Staff Selection Commission",url:"https://ssc.gov.in",parser:"ssc_html",interval:60,status:"Source Unavailable",last:"2026-10-28 06:45",items:0},
+  {name:"Railway Recruitment Board",url:"https://rrbcdg.gov.in",parser:"rrb_html",interval:60,status:"Source Unavailable",last:"2026-10-28 08:00",items:0},
+  {name:"Institute of Banking Personnel Selection",url:"https://ibps.in",parser":"ibps_html",interval:60,status:"Source Unavailable",last:"2026-10-28 05:15",items:0},
+  {name:"UP Public Service Commission",url:"https://uppsc.up.nic.in",parser:"uppsc_html",interval:60,status:"Source Unavailable",last:"2026-10-28 04:30",items:0},
+  {name:"India Post GDS",url:"https://indiapostgdsonline.gov.in",parser:"gds_html",interval:60,status:"Source Unavailable",last:"2026-10-28 03:45",items:0},
+  {name:"Reserve Bank of India",url:"https://opportunities.rbi.org.in",parser:"rbi_html",interval:60,status:"Source Unavailable",last:"2026-10-28 02:30",items:0},
+  {name:"Indian Army",url:"https://joinindianarmy.nic.in",parser:"army_html",interval:60,status:"Source Unavailable",last:"2026-10-28 01:15",items:0},
+  {name":"NABARD",url:"https://nabard.org",parser:"nabard_html",interval:60,status:"Source Unavailable",last:"2026-10-28 00:45",items:0},
+  {name":"Food Corporation of India",url:"https://fci.gov.in",parser:"fci_html",interval:60,status:"Source Unavailable",last:"2026-10-27 23:15",items:0},
+  {name":"Delhi Metro Rail Corporation",url:"https://delhimetrorail.in",parser:"dmrc_html",interval:60,status:"Source Unavailable",last:"2026-10-27 22:30",items:0},
+  {name":"Central Board of Secondary Education",url:"https://cbse.gov.in",parser:"cbse_html",interval:60,status:"Source Unavailable",last:"2026-10-27 21:45",items:0}
+];
 const JOBS = [];
 function daysLeft(d){if(!d)return null;const a=new Date();a.setHours(0,0,0,0);const b=new Date(d);b.setHours(0,0,0,0);return Math.ceil((b-a)/864e5);}
 function countdownText(e){const n=daysLeft(e.application_end);if(n===null)return"Date awaited";if(n<0)return"Closed";if(n===0)return"Closes today";return`${n}d left`;}
