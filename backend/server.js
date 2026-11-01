@@ -3,10 +3,18 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
+const cors = require('cors');
 const db = require('./db');
 const { runAll, startCron } = require('./scheduler');
 
 const app = express();
+app.use(cors({
+  origin: [
+    'https://your-vercel-app.vercel.app',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
 app.use(express.json({ limit: '256kb' }));
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@sarkari.track';
