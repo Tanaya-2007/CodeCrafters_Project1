@@ -10,7 +10,7 @@ const { runAll, startCron } = require('./scheduler');
 const app = express();
 app.use(cors({
   origin: [
-    'https://your-vercel-app.vercel.app',
+    'https://sarkaritracker.vercel.app',
     'http://localhost:3000'
   ],
   credentials: true
