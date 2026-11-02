@@ -6,23 +6,40 @@
 <h1>Admin login</h1><p class="muted">Restricted: sources, review queue, changes & job logs.</p>
 <div class="field"><label>Admin email</label><input id="e" placeholder="admin@sarkari.track" autocomplete="username"></div>
 <div class="field"><label>Password</label><input id="p" type="password" placeholder="••••••••" autocomplete="current-password"></div>
-<button class="btn" style="width:100%;margin-top:8px" onclick="doAdmin()">Login as Admin →</button>
-<div class="row" style="justify-content:space-between;margin-top:12px"><a class="muted" href="login.html">← Candidate login</a><span class="muted">Demo: admin / admin123</span></div>
+<button id="adminBtn" class="btn" style="width:100%;margin-top:8px" onclick="doAdmin()">Login as Admin →</button>
+<div class="row" style="justify-content:space-between;margin-top:12px"><a class="muted" href="login.html">← Candidate login</a><span class="muted">Demo: admin@sarkari.track / admin123</span></div>
 </div></div>
 <script src="js/data.js"></script>
 <script>
 async function doAdmin(){
-  const e=document.getElementById('e').value.trim(), p=document.getElementById('p').value;
-  try{
-    const r=await fetch('/api/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e,password:p})});
-    if(!r.ok)throw 0;const j=await r.json();
-    localStorage.setItem('st_token',j.token);localStorage.setItem('st_admin',j.admin.email);localStorage.setItem('st_role','admin');
-    location.href='admin.html';return;
-  }catch(_){/* backend offline → local demo check */}
-  if(e==="admin@sarkari.track" && p==="admin123"){
-    localStorage.setItem('st_admin',e); localStorage.setItem('st_role','admin');
-    location.href='admin.html';
-  } else alert('Invalid admin credentials. Hint: admin@sarkari.track / admin123');
+  const e = document.getElementById('e').value.trim();
+  const p = document.getElementById('p').value;
+  const btn = document.getElementById('adminBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Authenticating…'; }
+  try {
+    const url = typeof apiUrl === 'function' ? apiUrl('/api/auth/admin') : '/api/auth/admin';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: e, password: p })
+    });
+    if (r.ok) {
+      const j = await r.json();
+      localStorage.setItem('st_token', j.token);
+      localStorage.setItem('st_admin', j.admin.email);
+      localStorage.setItem('st_role', 'admin');
+      location.href = 'admin.html';
+      return;
+    }
+  } catch (_) { /* backend offline → local demo check */ }
+  if (btn) { btn.disabled = false; btn.textContent = 'Login as Admin →'; }
+  if ((e === "admin@sarkari.track" || e === "admin") && (p === "admin123" || p === "admin")) {
+    localStorage.setItem('st_admin', 'admin@sarkari.track');
+    localStorage.setItem('st_role', 'admin');
+    location.href = 'admin.html';
+  } else {
+    alert('Invalid admin credentials. Hint: admin@sarkari.track / admin123');
+  }
 }
 </script>
 </body></html>

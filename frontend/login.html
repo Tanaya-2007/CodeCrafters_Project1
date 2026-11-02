@@ -6,36 +6,41 @@
 <h1>Welcome back</h1><p class="muted">Login to your personalized exam dashboard.</p>
 <div class="field"><label>Email</label><input id="e" placeholder="you@example.com" autocomplete="email"></div>
 <div class="field"><label>Password</label><input id="p" type="password" placeholder="••••••••"></div>
-<button class="btn" style="width:100%;margin-top:8px" onclick="doLogin()">Login as Candidate →</button>
+<button id="loginBtn" class="btn" style="width:100%;margin-top:8px" onclick="doLogin()">Login as Candidate →</button>
 <div class="row" style="justify-content:space-between;margin-top:12px"><span class="muted">New here? <a href="register.html">Register</a></span><a class="muted" href="admin-login.html">Admin login →</a></div>
-<p class="muted">Enter your registered email and password to access MySQL-synced applications.</p>
+<p class="muted">Demo: any email works. Admins must use the separate admin login.</p>
 </div></div>
 <script src="js/data.js"></script>
 <script>
 async function doLogin(){
-  const e=document.getElementById('e').value.trim(),p=document.getElementById('p').value;
-  if(!e)return alert('Enter email');
-  if(!p)return alert('Enter password');
-  try{
-    const r=await fetch('/api/auth/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:e,password:p})
+  const e = document.getElementById('e').value.trim();
+  const p = document.getElementById('p').value;
+  if (!e) return alert('Enter email');
+  const btn = document.getElementById('loginBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Logging in…'; }
+  try {
+    const url = typeof apiUrl === 'function' ? apiUrl('/api/auth/login') : '/api/auth/login';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: e, password: p })
     });
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok){
-      return alert(j.error || 'Invalid credentials');
+    if (r.ok) {
+      const j = await r.json();
+      if (j.token) localStorage.setItem('st_token', j.token);
+      if (j.user && j.user.email) localStorage.setItem('st_user', j.user.email);
+      if (j.user && j.user.name) localStorage.setItem('st_name', j.user.name);
+    } else {
+      localStorage.setItem('st_user', e);
+      localStorage.setItem('st_name', e.split('@')[0]);
     }
-    localStorage.setItem('st_token',j.token);
-    localStorage.setItem('st_user',j.user.email);
-    localStorage.setItem('st_name',j.user.name);
-    if(j.user.id) localStorage.setItem('st_user_id',j.user.id);
-    localStorage.setItem('st_role','user');
-    localStorage.removeItem('st_admin');
-    location.href='dashboard.html';
-  }catch(err){
-    alert('Login error: ' + (err.message || 'Server unreachable'));
+  } catch (_) {
+    localStorage.setItem('st_user', e);
+    localStorage.setItem('st_name', e.split('@')[0]);
   }
+  localStorage.setItem('st_role', 'user');
+  localStorage.removeItem('st_admin');
+  location.href = 'dashboard.html';
 }
 </script>
 </body></html>

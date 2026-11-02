@@ -13,7 +13,8 @@ document.querySelector('main').insertBefore(aheadm,document.getElementById('g'))
 const AHEAD=()=>({Authorization:'Bearer '+(localStorage.getItem('st_token')||'')});
 async function loadQueue(){
   try{
-    const r=await fetch('/api/review',{headers:AHEAD()});
+    const url = typeof apiUrl === 'function' ? apiUrl('/api/review') : '/api/review';
+    const r=await fetch(url,{headers:AHEAD()});
     if(!r.ok)throw 0;const live=await r.json();
     if(Array.isArray(live)){EXAMS.length=0;live.forEach(e=>EXAMS.push(e));}
   }catch(_){/* offline demo: local EXAMS */}
@@ -27,7 +28,8 @@ g.innerHTML=q.map(e=>`<div class="card"><div class="org">${e.organization}</div>
 }
 async function decide(id,how){
   try{
-    const r=await fetch('/api/admin/exams/'+id+'/'+how,{method:'POST',headers:AHEAD()});
+    const url = typeof apiUrl === 'function' ? apiUrl('/api/admin/exams/'+id+'/'+how) : ('/api/admin/exams/'+id+'/'+how);
+    const r=await fetch(url,{method:'POST',headers:AHEAD()});
     if(!r.ok)throw 0;
     const i=EXAMS.findIndex(e=>e.id===id);if(i>=0)EXAMS.splice(i,1);
     toast(how==='approve'?'✓ Published':'Rejected — hidden');render();return;
@@ -37,7 +39,8 @@ async function decide(id,how){
 }
 async function approveAll(){
   try{
-    const r=await fetch('/api/admin/exams/approve-all',{method:'POST',headers:AHEAD()});
+    const url = typeof apiUrl === 'function' ? apiUrl('/api/admin/exams/approve-all') : '/api/admin/exams/approve-all';
+    const r=await fetch(url,{method:'POST',headers:AHEAD()});
     if(!r.ok)throw 0;const j=await r.json();toast('✓ Published '+j.approved+' notices');loadQueue();return;
   }catch(_){toast('Backend offline — approve items one by one');}
 }

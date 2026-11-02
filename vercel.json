@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "https://codecrafters-project1-n8we.onrender.com/api/:match*"
+    }
+  ]
+}

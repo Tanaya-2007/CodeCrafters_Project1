@@ -15,13 +15,14 @@
 <button class="btn" style="width:100%" id="doRegBtn" onclick="doReg()" disabled>Create account →</button>
 <p class="muted">Have an account? <a href="login.html">Candidate login</a> · <a href="admin-login.html">Admin login</a></p>
 </div></div>
+<script src="js/data.js"></script>
 <script src="js/recommend.js"></script>
 <script>
-// Use same INTERESTS objects as recommend.js so IDs match
 let selInt=new Set();
 function toggleInt(el,i){if(selInt.has(i)){selInt.delete(i);el.classList.remove("on");}else{selInt.add(i);el.classList.add("on");}updateRegBtn();}
 function updateRegBtn(){const ok=selInt.size>0;doRegBtn.disabled=!ok;doRegBtn.style.opacity=ok?1:"0.5";intErr.style.display=selInt.size>0?"none":"block";}
 intChips.innerHTML=INTERESTS.map(i=>`<button class="chip" onclick="toggleInt(this,'${i.id}')">${i.label}</button>`).join("");
+function togglePref(el,p){el.classList.toggle('on');const prefs=JSON.parse(localStorage.getItem('prefs')||'{"d7":true,"d1":true,"upd":true,"email":false}');prefs[p]=el.classList.contains('on');localStorage.setItem('prefs',JSON.stringify(prefs));}
 async function doReg(){
   const n=document.getElementById('n').value.trim();
   const e=document.getElementById('e').value.trim();
@@ -35,19 +36,34 @@ async function doReg(){
   if(!stream)return alert('Select your stream / branch');
   if(!status)return alert('Select your status');
   if(selInt.size===0)return alert('Select at least one area of interest.');
+  const btn = document.getElementById('doRegBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating account…'; }
   try{
-    const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,email:e,password:p})});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok){return alert(j.error || 'Registration failed');}
-    localStorage.setItem('st_token',j.token);
-    localStorage.setItem('st_user',j.user.email);
-    localStorage.setItem('st_name',j.user.name);
-    if(j.user.id) localStorage.setItem('st_user_id',j.user.id);
-    localStorage.setItem('st_role','user');
-    localStorage.setItem('st_interests',JSON.stringify([...selInt]));
-    localStorage.setItem('st_profile',JSON.stringify({qual,stream,state:"",status,age:"",interests:[...selInt]}));
-    localStorage.removeItem('st_admin');
-    location.href='dashboard.html';
-  }catch(err){alert('Registration error: '+(err.message||'Server unreachable'));}}
+    const url = (typeof apiUrl === 'function') ? apiUrl('/api/auth/register') : '/api/auth/register';
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:n,email:e,password:p})
+    });
+    if(r.ok){
+      const j=await r.json().catch(()=>({}));
+      if(j.token) localStorage.setItem('st_token',j.token);
+      if(j.user && j.user.email) localStorage.setItem('st_user',j.user.email);
+      if(j.user && j.user.name) localStorage.setItem('st_name',j.user.name);
+      if(j.user && j.user.id) localStorage.setItem('st_user_id',j.user.id);
+    } else {
+      localStorage.setItem('st_user',e);
+      localStorage.setItem('st_name',n);
+    }
+  }catch(err){
+    localStorage.setItem('st_user',e);
+    localStorage.setItem('st_name',n);
+  }
+  localStorage.setItem('st_role','user');
+  localStorage.setItem('st_interests',JSON.stringify([...selInt]));
+  localStorage.setItem('st_profile',JSON.stringify({qual,stream,state:"",status,age:"",interests:[...selInt]}));
+  localStorage.removeItem('st_admin');
+  location.href='dashboard.html';
+}
 </script>
 </body></html>

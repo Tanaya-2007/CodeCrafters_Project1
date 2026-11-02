@@ -11,7 +11,11 @@ const app = express();
 app.use(cors({
   origin: [
     'https://sarkaritracker.vercel.app',
-    'http://localhost:3000'
+    'https://codecraftersproject1-frontend.vercel.app',
+    'https://codecrafters-project1-frontend.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500'
   ],
   credentials: true
 }));

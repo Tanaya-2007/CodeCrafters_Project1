@@ -1,14 +1,12 @@
-// Live API loader — replaces mock EXAMS/SOURCES/JOBS with 100% real-time
-// official-portal data whenever the backend is reachable. Include AFTER
-// data.js + app.js, BEFORE the page's own inline script.
-// Offline (plain Live Server): EXAMS stays empty, pages show empty state
-// until backend is connected.
+// SarkariTrack — Live API loader — connects frontend (Vercel) to backend (Render)
+const API_BASE_URL = window.API_BASE_URL || 'https://codecrafters-project1-n8we.onrender.com';
+
 window.apiTrackExam = async function (examId, status, notes) {
   const token = localStorage.getItem('st_token') || '';
   const userId = localStorage.getItem('st_user_id') || null;
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch('/api/applications', {
+  const res = await fetch(API_BASE_URL + '/api/applications', {
     method: 'POST',
     headers,
     body: JSON.stringify({ examId: Number(examId) || examId, status, notes: notes || null, userId })
@@ -19,6 +17,7 @@ window.apiTrackExam = async function (examId, status, notes) {
   }
   return res.json();
 };
+
 window.apiUntrackExam = async function (examId) {
   const token = localStorage.getItem('st_token') || '';
   const userId = localStorage.getItem('st_user_id') || null;
@@ -27,12 +26,12 @@ window.apiUntrackExam = async function (examId) {
   const numericId = Number(examId) || examId;
   let res;
   try {
-    res = await fetch('/api/applications/' + encodeURIComponent(numericId) + (userId ? '?userId=' + userId : ''), {
+    res = await fetch(API_BASE_URL + '/api/applications/' + encodeURIComponent(numericId) + (userId ? '?userId=' + userId : ''), {
       method: 'DELETE',
       headers
     });
   } catch (_) {
-    res = await fetch('/api/applications/delete', {
+    res = await fetch(API_BASE_URL + '/api/applications/delete', {
       method: 'POST',
       headers,
       body: JSON.stringify({ examId: numericId, userId })
@@ -44,12 +43,13 @@ window.apiUntrackExam = async function (examId) {
   }
   return res.json();
 };
+
 window.apiGetApplications = async function () {
   const token = localStorage.getItem('st_token') || '';
   const userId = localStorage.getItem('st_user_id') || null;
   const headers = {};
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch('/api/applications' + (userId ? '?userId=' + userId : ''), {
+  const res = await fetch(API_BASE_URL + '/api/applications' + (userId ? '?userId=' + userId : ''), {
     cache: 'no-store',
     headers
   });
@@ -59,13 +59,14 @@ window.apiGetApplications = async function () {
   }
   return res.json();
 };
+
 (async function () {
   const token = () => localStorage.getItem('st_token') || '';
   const userId = () => localStorage.getItem('st_user_id') || '';
   async function get(p) {
     const headers = {};
     if (token()) headers['Authorization'] = 'Bearer ' + token();
-    const r = await fetch(p, { cache: 'no-store', headers });
+    const r = await fetch(API_BASE_URL + p, { cache: 'no-store', headers });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   }
@@ -76,19 +77,14 @@ window.apiGetApplications = async function () {
     s.id = 'livePill';
     s.className = 'abtn ' + (live ? '' : 'light');
     s.style.cursor = 'default';
-    s.textContent = live ? `● Live · ${n} notices` : '○ Demo data · backend offline';
+    s.textContent = live ? '● Live · ' + n + ' notices' : '○ Demo data · backend offline';
     s.title = live ? 'Real-time official records from the backend' : 'Run: cd backend && npm install && node server.js';
     top.prepend(s);
   }
   let exams = null, sources = null, jobs = null, changes = null, applications = null;
-
-  // 1) Use server-injected data if present (no blank flash)
-  if (window.__EXAMS__ && Array.isArray(window.__EXAMS__)) {
-    exams = window.__EXAMS__;
-  }
-
   try {
     const fetches = [
+      get('/api/exams'),
       get('/api/sources'),
       get('/api/jobs').catch(() => null),
       get('/api/changes').catch(() => null)
@@ -97,12 +93,12 @@ window.apiGetApplications = async function () {
       fetches.push(get('/api/applications' + (userId() ? '?userId=' + userId() : '')).catch(() => null));
     }
     const results = await Promise.all(fetches);
-    sources = results[0];
-    jobs = results[1];
-    changes = results[2];
+    exams = results[0];
+    sources = results[1];
+    jobs = results[2];
+    changes = results[3];
     if (results.length > 4) applications = results[4];
   } catch (e) {
-    pill(false);
     window.apiLoaded = true;
     document.dispatchEvent(new CustomEvent('data-changed'));
     return;
@@ -124,7 +120,6 @@ window.apiGetApplications = async function () {
     jobs.forEach(j => JOBS.push(j));
   }
   if (Array.isArray(changes)) window.LIVE_CHANGES = changes;
-  // Sync applications from MySQL into local tracker state
   if (Array.isArray(applications)) {
     const t = {};
     applications.forEach(a => {
@@ -138,7 +133,6 @@ window.apiGetApplications = async function () {
   document.dispatchEvent(new CustomEvent('data-changed'));
   try { if (typeof render === 'function') render(); } catch (_) { /* pages without render() */ }
   try { if (typeof renderDetails === 'function') renderDetails(); } catch (_) { /* not details page */ }
-  // pull server-owned tracker into local cache when logged in
   try {
     if (localStorage.getItem('st_token')) {
       const tr = await get('/api/tracker').catch(() => null);
@@ -152,14 +146,12 @@ window.apiGetApplications = async function () {
   } catch (_) { /* device-local tracker stays */ }
 })();
 
-// Server-owned tracker helper. save() → {ok} | {error} | null(offline).
-// Server enforces forward-only transitions; Completed never wraps around.
 window.TrackAPI = {
   async save(examId, status) {
     const t = localStorage.getItem('st_token');
     if (!t) return null;
     try {
-      const r = await fetch('/api/tracker', {
+      const r = await fetch(API_BASE_URL + '/api/tracker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
         body: JSON.stringify({ exam_id: examId, status })
